@@ -38,6 +38,7 @@
     <section id="results-panel">
       <div class="toolbar">
         <button id="export-csv">Export CSV</button>
+        <button id="delete-in-range" class="danger">Delete in range</button>
       </div>
       <p id="status-line" class="status-line"></p>
       <div id="results-table"></div>
@@ -49,6 +50,17 @@
     <div id="detail-content"></div>
   </aside>
 
+  <div id="delete-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Delete points in range</h2>
+      <div id="delete-modal-body"></div>
+      <div class="modal-actions">
+        <button id="delete-modal-cancel">Cancel</button>
+        <button id="delete-modal-confirm" class="danger" disabled>Delete permanently</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/vendor/tabulator.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/state.js"></script>
@@ -56,6 +68,7 @@
   <script src="/js/filter_builder.js"></script>
   <script src="/js/table.js"></script>
   <script src="/js/detail_panel.js"></script>
+  <script src="/js/modals/delete_confirm.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

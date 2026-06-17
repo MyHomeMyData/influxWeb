@@ -22,13 +22,7 @@ const Api = {
   },
 
   async queryPoints(selection) {
-    return Api._json(
-      await fetch("/api/points/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(selection),
-      })
-    );
+    return Api._post("/api/points/query", selection);
   },
 
   async getPointDetail(pointId) {
@@ -39,10 +33,33 @@ const Api = {
     return `/api/export/csv?selection_json=${encodeURIComponent(JSON.stringify(selection))}`;
   },
 
+  async previewDelete(selection) {
+    return Api._post("/api/delete/preview", selection);
+  },
+
+  async executeDelete(payload) {
+    return Api._post("/api/delete/execute", payload);
+  },
+
+  async _post(url, body) {
+    return Api._json(
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    );
+  },
+
   async _json(response) {
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`API error ${response.status}: ${text}`);
+      let message = await response.text();
+      try {
+        message = JSON.parse(message).detail ?? message;
+      } catch {
+        // not JSON, keep raw text
+      }
+      throw new Error(message);
     }
     return response.json();
   },

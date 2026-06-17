@@ -162,3 +162,62 @@ main {
   color: #555;
   margin: 0.5rem 0;
 }
+
+button.danger {
+  background: #c0392b;
+  color: white;
+  border: 1px solid #a93226;
+}
+
+button.danger:disabled {
+  background: #d7a8a2;
+  border-color: #d7a8a2;
+  cursor: not-allowed;
+}
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-box {
+  background: white;
+  border-radius: 6px;
+  padding: 1.5rem;
+  width: min(700px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-box h2 {
+  margin-top: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.preview-table th,
+.preview-table td {
+  border-bottom: 1px solid #eee;
+  padding: 0.25rem 0.4rem;
+  text-align: left;
+}

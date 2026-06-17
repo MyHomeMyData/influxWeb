@@ -33,6 +33,7 @@ function clearSelection() {
 document.addEventListener("DOMContentLoaded", async () => {
   DetailPanel.init();
   ResultsTable.init((row) => DetailPanel.show(row.id));
+  DeleteConfirmModal.init(applyQuery);
 
   await BucketSelect.init(async () => {
     await FilterBuilder.render(applyQuery);
@@ -42,4 +43,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("apply-query").addEventListener("click", applyQuery);
   document.getElementById("export-csv").addEventListener("click", exportCsv);
   document.getElementById("clear-selection").addEventListener("click", clearSelection);
+  document.getElementById("delete-in-range").addEventListener("click", () => DeleteConfirmModal.open());
 });

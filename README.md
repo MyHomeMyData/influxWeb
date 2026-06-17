@@ -11,16 +11,18 @@ exposure.
 
 ## Status
 
-Early development. Currently implemented (read-only browsing & export):
+Early development. Currently implemented:
 - Bucket selection
-- Measurement/tag schema browsing and selection (click or filter)
+- Measurement/tag schema browsing and selection (click or filter, with a clear/reset action)
 - Time range selection
-- Querying and listing datapoints
+- Querying and listing datapoints, with adjustable page size
 - Point detail view
 - CSV export
+- Delete points in a time range, with a preview (affected points, sample, resolved
+  time bounds) and explicit confirmation before anything is deleted
 
-Planned next: delete-in-range, edit/add values, retime, timestamp normalization,
-CSV import — each behind a preview/confirm step before anything destructive runs.
+Planned next: edit/add values, retime, timestamp normalization, CSV import — each
+behind the same preview/confirm pattern used for delete.
 
 ## Setup
 
