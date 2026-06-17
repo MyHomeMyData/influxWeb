@@ -1,3 +1,13 @@
+# Local data
+.local_data/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
 # Compiled class file
 *.class
 

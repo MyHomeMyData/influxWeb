@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>influxWeb</title>
+  <link rel="stylesheet" href="/vendor/tabulator.min.css" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <header>
+    <h1>influxWeb</h1>
+    <label>
+      Bucket
+      <select id="bucket-select"></select>
+    </label>
+    <label>
+      Range start
+      <input id="range-start" type="text" value="-24h" />
+    </label>
+    <label>
+      Range stop
+      <input id="range-stop" type="text" value="now()" />
+    </label>
+    <button id="apply-query">Apply</button>
+  </header>
+
+  <main>
+    <section id="selection-panel">
+      <h2>Browse / filter</h2>
+      <p class="status-line">Click to select. Alt+click a measurement to expand its tags.</p>
+      <div class="search-row">
+        <input id="schema-search" type="text" placeholder="Filter..." />
+        <button id="clear-selection" title="Clear filter and selection">&times;</button>
+      </div>
+      <div id="schema-tree"></div>
+    </section>
+
+    <section id="results-panel">
+      <div class="toolbar">
+        <button id="export-csv">Export CSV</button>
+      </div>
+      <p id="status-line" class="status-line"></p>
+      <div id="results-table"></div>
+    </section>
+  </main>
+
+  <aside id="detail-panel">
+    <button id="detail-close" class="close-button">&times;</button>
+    <div id="detail-content"></div>
+  </aside>
+
+  <script src="/vendor/tabulator.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/state.js"></script>
+  <script src="/js/bucket_select.js"></script>
+  <script src="/js/filter_builder.js"></script>
+  <script src="/js/table.js"></script>
+  <script src="/js/detail_panel.js"></script>
+  <script src="/js/main.js"></script>
+</body>
+</html>

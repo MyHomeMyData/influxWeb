@@ -1,0 +1,164 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: #f5f6f8;
+  color: #1a1a1a;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #20303f;
+  color: white;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  margin-right: 1rem;
+}
+
+header label {
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+header select,
+header input {
+  padding: 0.3rem;
+}
+
+main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+#selection-panel {
+  background: white;
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  width: 280px;
+  min-width: 200px;
+  max-width: 70vw;
+  flex-shrink: 0;
+  height: 80vh;
+  overflow: auto;
+  resize: horizontal;
+}
+
+.search-row {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.search-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-row button {
+  cursor: pointer;
+}
+
+#selection-panel h2 {
+  font-size: 0.95rem;
+  margin-top: 0;
+}
+
+.tree-node {
+  cursor: pointer;
+  padding: 0.15rem 0.3rem;
+  border-radius: 3px;
+}
+
+.tree-node:hover {
+  background: #eef2f6;
+}
+
+.tree-node.selected {
+  background: #cfe3fa;
+}
+
+.tree-children {
+  margin-left: 1rem;
+}
+
+#results-panel {
+  background: white;
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.toolbar button {
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+#detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100%;
+  background: white;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+  padding: 1rem;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.15s ease-out;
+}
+
+#detail-panel.open {
+  transform: translateX(0);
+}
+
+#detail-panel h2 {
+  font-size: 1rem;
+}
+
+#detail-panel dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 0.6rem;
+}
+
+#detail-panel dt {
+  font-weight: 600;
+}
+
+.close-button {
+  float: right;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-size: 1.1rem;
+}
+
+.status-line {
+  font-size: 0.85rem;
+  color: #555;
+  margin: 0.5rem 0;
+}
