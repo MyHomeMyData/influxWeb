@@ -45,4 +45,8 @@ const ResultsTable = {
   getSelectedRows() {
     return this.tabulator.getSelectedData();
   },
+
+  getAllRows() {
+    return this.tabulator.getData();
+  },
 };

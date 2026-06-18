@@ -53,6 +53,8 @@ const FilterBuilder = {
 
     const nodes = measurements.map((measurement) => this._buildMeasurementNode(measurement));
     for (const { wrapper } of nodes) this.container.appendChild(wrapper);
+    this._measurements = measurements;
+    this._measurementNodes = nodes;
 
     nodes.forEach(({ node }, index) => {
       node.addEventListener("click", (event) => {
@@ -167,6 +169,11 @@ const FilterBuilder = {
     node.textContent = value;
     if (State.isTagValueSelected(tagKey, value)) node.classList.add("selected");
     return node;
+  },
+
+  getVisibleMeasurements() {
+    if (!this._measurements) return [];
+    return this._measurements.filter((_, i) => this._measurementNodes[i].node.style.display !== "none");
   },
 
   filterByText(term) {

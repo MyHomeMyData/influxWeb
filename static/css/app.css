@@ -25,6 +25,13 @@ header h1 {
   margin-right: 1rem;
 }
 
+#query-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
 header label {
   font-size: 0.85rem;
   display: flex;

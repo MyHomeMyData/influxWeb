@@ -9,19 +9,21 @@
 <body>
   <header>
     <h1>influxWeb</h1>
-    <label>
-      Bucket
-      <select id="bucket-select"></select>
-    </label>
-    <label>
-      Range start
-      <input id="range-start" type="text" value="-24h" />
-    </label>
-    <label>
-      Range stop
-      <input id="range-stop" type="text" value="now()" />
-    </label>
-    <button id="apply-query">Apply</button>
+    <form id="query-form">
+      <label>
+        Bucket
+        <select id="bucket-select"></select>
+      </label>
+      <label>
+        Range start
+        <input id="range-start" type="text" value="-24h" />
+      </label>
+      <label>
+        Range stop
+        <input id="range-stop" type="text" value="now()" />
+      </label>
+      <button id="apply-query" type="submit">Apply</button>
+    </form>
     <span class="utc-note">All times shown here are UTC.</span>
   </header>
 

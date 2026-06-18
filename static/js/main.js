@@ -1,10 +1,26 @@
+function buildEffectiveSelection() {
+  // If nothing was explicitly clicked in the tree, fall back to whatever the
+  // text filter currently narrows the measurement list down to - otherwise
+  // typing a filter and hitting Apply without clicking would silently query
+  // (or delete) everything instead of the visibly filtered subset.
+  const selection = State.toSelection();
+  if (selection.measurements.length === 0) {
+    const searchTerm = document.getElementById("schema-search").value.trim();
+    if (searchTerm) {
+      selection.measurements = FilterBuilder.getVisibleMeasurements();
+    }
+  }
+  return selection;
+}
+
 async function applyQuery() {
   const status = document.getElementById("status-line");
   if (!State.bucket) return;
   status.textContent = "Querying...";
   try {
-    const result = await Api.queryPoints(State.toSelection());
+    const result = await Api.queryPoints(buildEffectiveSelection());
     ResultsTable.setRows(result.points);
+    updateToolbarLabels(ResultsTable.getSelectedRows());
     status.textContent = result.truncated
       ? `Showing first ${result.points.length} points (truncated)`
       : `${result.points.length} points`;
@@ -26,13 +42,13 @@ async function exportOds() {
   if (!State.bucket) return;
   const status = document.getElementById("status-line");
   const selectedRows = ResultsTable.getSelectedRows();
+  // With nothing explicitly selected, export every row currently loaded in
+  // the table - it's already fetched, so no extra (slow) server query is
+  // needed to re-derive the same result set.
+  const rows = selectedRows.length > 0 ? selectedRows : ResultsTable.getAllRows();
   try {
-    if (selectedRows.length > 0) {
-      const blob = await Api.exportOdsSelectedBlob(State.bucket, selectedRows);
-      downloadBlob("influxweb-export.ods", blob);
-    } else {
-      window.location.href = Api.exportOdsUrl(State.toSelection());
-    }
+    const blob = await Api.exportOdsSelectedBlob(State.bucket, rows);
+    downloadBlob("influxweb-export.ods", blob);
   } catch (error) {
     status.textContent = `Export failed: ${error.message}`;
   }
@@ -47,13 +63,20 @@ function clearSelection() {
   FilterBuilder.filterByText("");
 
   ResultsTable.setRows([]);
+  updateToolbarLabels([]);
   document.getElementById("status-line").textContent = "Selection cleared - choose a measurement or tag value";
 }
 
 function updateToolbarLabels(selectedRows) {
   const count = selectedRows.length;
-  document.getElementById("export-ods").textContent = count > 0 ? `Export selected (${count})` : "Export ODS";
-  document.getElementById("delete-in-range").textContent = count > 0 ? `Delete selected (${count})` : "Delete in range";
+  if (count > 0) {
+    document.getElementById("export-ods").textContent = `Export selected (${count})`;
+    document.getElementById("delete-in-range").textContent = `Delete selected (${count})`;
+    return;
+  }
+  const total = ResultsTable.getAllRows().length;
+  document.getElementById("export-ods").textContent = `Export all (${total})`;
+  document.getElementById("delete-in-range").textContent = `Delete all (${total})`;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -65,7 +88,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     await applyQuery();
   });
 
-  document.getElementById("apply-query").addEventListener("click", applyQuery);
+  document.getElementById("query-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    applyQuery();
+  });
   document.getElementById("export-ods").addEventListener("click", exportOds);
   document.getElementById("clear-selection").addEventListener("click", clearSelection);
   document.getElementById("delete-in-range").addEventListener("click", () => DeleteConfirmModal.open());

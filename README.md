@@ -22,8 +22,8 @@ Early development. Currently implemented:
 - Export to ODS (whole query result, or just the selected rows), with proper
   cell types (numbers, booleans, dates) and an instructions block describing
   the round-trip contract for a later import
-- Delete points in a time range, or delete exactly the selected rows — both
-  with a preview (affected points, sample, resolved time bounds) and explicit
+- Delete points - either exactly the selected rows, or (with nothing selected)
+  every row currently loaded in the table - with a preview and explicit
   confirmation before anything is deleted
 
 Planned next: edit/add values, retime, timestamp normalization, ODS import —

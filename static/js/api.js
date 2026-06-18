@@ -25,10 +25,6 @@ const Api = {
     return Api._post("/api/points/query", selection);
   },
 
-  exportOdsUrl(selection) {
-    return `/api/export/ods?selection_json=${encodeURIComponent(JSON.stringify(selection))}`;
-  },
-
   async exportOdsSelectedBlob(bucket, points) {
     const response = await fetch("/api/export/ods/selected", {
       method: "POST",
@@ -39,14 +35,6 @@ const Api = {
       throw new Error(await response.text());
     }
     return response.blob();
-  },
-
-  async previewDelete(selection) {
-    return Api._post("/api/delete/preview", selection);
-  },
-
-  async executeDelete(payload) {
-    return Api._post("/api/delete/execute", payload);
   },
 
   async previewDeleteSelected(points) {
