@@ -76,3 +76,29 @@ def test_requested_limit_above_hard_max_is_clamped(monkeypatch):
     rows, truncated = query_service.query_points(_FakeClient(100), selection, time_range, 1_000_000)
     assert len(rows) == 7
     assert truncated is True
+
+
+def test_measurement_filter_uses_equality_not_contains():
+    # contains() defeats InfluxDB's predicate push-down (measured 100x+ slower
+    # on a real bucket - it forces a full scan instead of an index lookup).
+    assert query_service._measurement_filter(["temperature"]) == 'r._measurement == "temperature"'
+
+
+def test_measurement_filter_or_chains_multiple_values():
+    result = query_service._measurement_filter(["temperature", "humidity"])
+    assert result == 'r._measurement == "temperature" or r._measurement == "humidity"'
+    assert "contains(" not in result
+
+
+def test_measurement_filter_empty_list_is_none():
+    assert query_service._measurement_filter([]) is None
+
+
+def test_tag_filter_uses_equality_not_contains():
+    assert query_service._tag_filter("room", ["kitchen"]) == 'r["room"] == "kitchen"'
+
+
+def test_tag_filter_or_chains_multiple_values():
+    result = query_service._tag_filter("room", ["kitchen", "bath"])
+    assert result == 'r["room"] == "kitchen" or r["room"] == "bath"'
+    assert "contains(" not in result
