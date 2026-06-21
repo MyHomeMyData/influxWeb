@@ -33,6 +33,7 @@ def _request(**overrides) -> PointWriteRequest:
         tags={"room": "kitchen"},
         field="value",
         value=21.5,
+        value_type="float",
         time=TIME,
     )
     defaults.update(overrides)
@@ -66,7 +67,7 @@ def test_write_point_preserves_microsecond_precision():
 
 def test_write_point_with_boolean_value():
     client = _FakeClient()
-    write_point(client, "org", _request(field="ack", value=True, tags={}))
+    write_point(client, "org", _request(field="ack", value=True, value_type="bool", tags={}))
 
     line = client.write_api_instance.calls[0]["record"].to_line_protocol()
     assert line == f"temperature ack=true {TIME_NS}"
@@ -74,10 +75,30 @@ def test_write_point_with_boolean_value():
 
 def test_write_point_with_string_value():
     client = _FakeClient()
-    write_point(client, "org", _request(value="hello"))
+    write_point(client, "org", _request(value="hello", value_type="string"))
 
     line = client.write_api_instance.calls[0]["record"].to_line_protocol()
     assert line == f'temperature,room=kitchen value="hello" {TIME_NS}'
+
+
+def test_write_point_coerces_whole_number_to_float_when_declared_float():
+    # Reproduces the round-trip bug: a JSON number with no decimal point is
+    # ambiguous (60 vs 60.0), so the explicit value_type must decide, not
+    # whatever type Pydantic happened to infer from the raw JSON literal.
+    client = _FakeClient()
+    write_point(client, "org", _request(field="humidity", value=60, value_type="float"))
+
+    line = client.write_api_instance.calls[0]["record"].to_line_protocol()
+    assert "humidity=60 " in line
+    assert "humidity=60i" not in line
+
+
+def test_write_point_coerces_to_int_when_declared_int():
+    client = _FakeClient()
+    write_point(client, "org", _request(field="count", value=60, value_type="int"))
+
+    line = client.write_api_instance.calls[0]["record"].to_line_protocol()
+    assert "count=60i" in line
 
 
 def test_write_point_with_multiple_tags():

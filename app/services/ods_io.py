@@ -8,7 +8,8 @@ from odf.style import Style, TextProperties
 from odf.table import Table, TableCell, TableRow
 from odf.text import P
 
-from app.models.points import PointRow
+from app.models.points import FieldValue, FieldValueType, PointRow
+from app.utils.field_value import coerce_field_value
 from app.utils.timezone import get_local_zone, get_local_zone_name
 
 LOCAL_ZONE = get_local_zone()
@@ -87,24 +88,31 @@ def _string_cell(text: str, style_name: str | None = None) -> TableCell:
     return cell
 
 
-def _value_cell(value: float | int | bool | str, styles: dict[str, str]) -> TableCell:
-    if isinstance(value, bool):
-        cell = TableCell(valuetype="boolean", booleanvalue="true" if value else "false")
-        cell.addElement(P(text="TRUE" if value else "FALSE"))
+def _value_cell(value: FieldValue, value_type: FieldValueType, styles: dict[str, str]) -> TableCell:
+    # Cast explicitly by the declared type rather than inspecting the raw
+    # Python value: a row's `value` may have round-tripped through the
+    # frontend as JSON, where a whole-number float is indistinguishable from
+    # an int (the exact bug fixed in write_point()/execute_retime()) - using
+    # `isinstance` here would silently export it with the wrong cell style.
+    coerced = coerce_field_value(value, value_type)
+
+    if value_type == "bool":
+        cell = TableCell(valuetype="boolean", booleanvalue="true" if coerced else "false")
+        cell.addElement(P(text="TRUE" if coerced else "FALSE"))
         return cell
 
-    if isinstance(value, int):
-        cell = TableCell(valuetype="float", value=str(value), stylename=styles["int"])
-        cell.addElement(P(text=str(value)))
+    if value_type == "int":
+        cell = TableCell(valuetype="float", value=str(coerced), stylename=styles["int"])
+        cell.addElement(P(text=str(coerced)))
         return cell
 
-    if isinstance(value, float):
-        cell = TableCell(valuetype="float", value=str(value), stylename=styles["float"])
-        display = f"{value:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    if value_type == "float":
+        cell = TableCell(valuetype="float", value=str(coerced), stylename=styles["float"])
+        display = f"{coerced:,.3f}".replace(",", "X").replace(".", ",").replace("X", ".")
         cell.addElement(P(text=display))
         return cell
 
-    return _string_cell(str(value))
+    return _string_cell(str(coerced))
 
 
 def _time_cell(time_str: str, styles: dict[str, str]) -> TableCell:
@@ -159,9 +167,9 @@ def build_ods(bucket: str, rows: list[PointRow]) -> bytes:
         for key in tag_keys:
             table_row.addElement(_string_cell(row.tags.get(key, "")))
         table_row.addElement(_string_cell(row.field))
-        table_row.addElement(_value_cell(row.value, styles))
+        table_row.addElement(_value_cell(row.value, row.value_type, styles))
         table_row.addElement(_time_cell(row.time, styles))
-        table_row.addElement(_value_cell(_milliseconds_of(row.time), styles))
+        table_row.addElement(_value_cell(_milliseconds_of(row.time), "int", styles))
         sheet.addElement(table_row)
 
     doc.spreadsheet.addElement(sheet)

@@ -2,7 +2,7 @@ from influxdb_client import InfluxDBClient
 
 from app.models.jobs import DeleteSelectedExecuteResponse, DeleteSelectedPreviewResponse, PointRef
 from app.utils.confirm_token import make_confirm_token, verify_confirm_token
-from app.utils.flux import flux_string
+from app.utils.flux import series_predicate
 from app.utils.time import ns_to_rfc3339, rfc3339_to_ns
 
 
@@ -16,11 +16,7 @@ def preview_delete_selected(points: list[PointRef]) -> DeleteSelectedPreviewResp
 
 
 def _point_predicate(point: PointRef) -> str:
-    clauses = [f"_measurement={flux_string(point.measurement)}"]
-    # Tag keys must be quoted too: the delete predicate grammar treats
-    # some tag key names (e.g. "from") as reserved words otherwise.
-    clauses.extend(f"{flux_string(key)}={flux_string(value)}" for key, value in point.tags.items())
-    return " and ".join(clauses)
+    return series_predicate(point.measurement, point.tags)
 
 
 def execute_delete_selected(

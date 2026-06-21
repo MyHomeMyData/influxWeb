@@ -5,6 +5,8 @@ from influxdb_client.rest import ApiException
 
 from app.influx_client import get_influx_client
 from app.main import app
+from app.models.retime import RetimePoint
+from app.services.retime import preview_retime
 
 
 class _FakeHttpResponse:
@@ -92,8 +94,47 @@ def test_influx_write_error_surfaces_its_own_message():
                 "tags": {},
                 "field": "value",
                 "value": 1.0,
+                "value_type": "float",
                 "time": "2026-06-19T00:00:00Z",
             },
+        )
+    finally:
+        app.dependency_overrides.pop(get_influx_client, None)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "invalid field value"
+
+
+class _UncalledDeleteApi:
+    def delete(self, start, stop, predicate, bucket, org):
+        raise AssertionError("delete() should not be reached if write fails first")
+
+
+class _RejectingRetimeClient:
+    def write_api(self, write_options=None):
+        return _RejectingWriteApi()
+
+    def delete_api(self):
+        return _UncalledDeleteApi()
+
+
+def test_influx_retime_write_error_surfaces_its_own_message():
+    point = RetimePoint(
+        bucket="b",
+        measurement="m",
+        tags={},
+        old_time="2026-06-19T00:00:00Z",
+        new_time="2026-06-20T00:00:00Z",
+        fields={"value": {"value": 1.0, "value_type": "float"}},
+    )
+    confirm_token = preview_retime([point]).confirm_token
+
+    app.dependency_overrides[get_influx_client] = lambda: _RejectingRetimeClient()
+    try:
+        client = TestClient(app)
+        response = client.post(
+            "/api/retime/execute",
+            json={"points": [point.model_dump()], "confirm_token": confirm_token},
         )
     finally:
         app.dependency_overrides.pop(get_influx_client, None)

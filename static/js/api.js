@@ -55,6 +55,22 @@ const Api = {
     );
   },
 
+  async computeRetimeOffset(points, amount, unit) {
+    return Api._post("/api/retime/offset/compute", { points, amount, unit });
+  },
+
+  async computeRetimeNormalize(points, granularity) {
+    return Api._post("/api/retime/normalize/compute", { points, granularity });
+  },
+
+  async previewRetime(points) {
+    return Api._post("/api/retime/preview", { points });
+  },
+
+  async executeRetime(points, confirmToken) {
+    return Api._post("/api/retime/execute", { points, confirm_token: confirmToken });
+  },
+
   async _post(url, body) {
     return Api._json(
       await fetch(url, {

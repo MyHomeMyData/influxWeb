@@ -1,6 +1,14 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 FieldValue = float | int | bool | str
+# JSON has no int/float distinction for whole numbers (e.g. 60 vs 60.0 both
+# round-trip through a browser as the same JS Number, then serialize back as
+# "60") - so a write needs this explicit tag to know which Python type to
+# build the InfluxDB field with, rather than guessing from the raw JSON value
+# and risking a field-type conflict against what's already stored.
+FieldValueType = Literal["float", "int", "bool", "string"]
 
 
 class Selection(BaseModel):
@@ -24,6 +32,7 @@ class PointRow(BaseModel):
     tags: dict[str, str]
     field: str
     value: FieldValue
+    value_type: FieldValueType
     time: str
 
 
@@ -43,6 +52,7 @@ class PointWriteRequest(BaseModel):
     tags: dict[str, str]
     field: str
     value: FieldValue
+    value_type: FieldValueType
     time: str
 
 

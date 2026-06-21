@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from influxdb_client.rest import ApiException
 from urllib3.exceptions import TimeoutError as Urllib3TimeoutError
 
-from app.routers import buckets, delete, export, points, schema
+from app.routers import buckets, delete, export, points, retime, schema
 
 app = FastAPI(title="influxWeb")
 
@@ -16,6 +16,7 @@ app.include_router(schema.router)
 app.include_router(points.router)
 app.include_router(export.router)
 app.include_router(delete.router)
+app.include_router(retime.router)
 
 
 @app.exception_handler(Urllib3TimeoutError)

@@ -80,11 +80,13 @@ function updateToolbarLabels(selectedRows) {
   const count = selectedRows.length;
   if (count > 0) {
     document.getElementById("export-ods").textContent = `Export selected (${count})`;
+    document.getElementById("retime-in-range").textContent = `Retime selected (${count})`;
     document.getElementById("delete-in-range").textContent = `Delete selected (${count})`;
     return;
   }
   const total = ResultsTable.getAllRows().length;
   document.getElementById("export-ods").textContent = `Export all (${total})`;
+  document.getElementById("retime-in-range").textContent = `Retime all (${total})`;
   document.getElementById("delete-in-range").textContent = `Delete all (${total})`;
 }
 
@@ -98,14 +100,47 @@ async function onPointAdded() {
   setStatus("Point added.");
 }
 
+async function onPointsRetimed(count) {
+  await applyQuery();
+  setStatus(`${count} point(s) retimed.`);
+}
+
+function onTimeEdited(cell) {
+  const row = cell.getRow().getData();
+  const oldTime = cell.getOldValue();
+  const newTime = cell.getValue();
+  // Tabulator already applied the new time to this row's own data by the time
+  // cellEdited fires, so it no longer matches `oldTime` in the lookup below -
+  // its field/value are still correct though, so add them back in directly
+  // (findPointGroup returns undefined when this was the point's only field).
+  const group = ResultsTable.findPointGroup(row.measurement, row.tags, oldTime) ?? {
+    measurement: row.measurement,
+    tags: row.tags,
+    fields: {},
+  };
+  group.fields[row.field] = { value: row.value, value_type: row.value_type };
+  const point = {
+    bucket: State.bucket,
+    measurement: group.measurement,
+    tags: group.tags,
+    old_time: oldTime,
+    new_time: newTime,
+    fields: group.fields,
+  };
+  RetimeConfirmModal.open([point], () => cell.restoreOldValue());
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   ResultsTable.init(
     (selectedRows) => updateToolbarLabels(selectedRows),
-    (cell) => EditConfirmModal.open(cell)
+    (cell) => EditConfirmModal.open(cell),
+    (cell) => onTimeEdited(cell)
   );
   DeleteConfirmModal.init(applyQuery);
   EditConfirmModal.init(onPointSaved);
   AddPointModal.init(onPointAdded);
+  RetimeConfirmModal.init(onPointsRetimed);
+  RetimeBulkModal.init();
 
   await BucketSelect.init(async () => {
     await FilterBuilder.render(applyQuery);
@@ -120,4 +155,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("clear-selection").addEventListener("click", clearSelection);
   document.getElementById("delete-in-range").addEventListener("click", () => DeleteConfirmModal.open());
   document.getElementById("add-point").addEventListener("click", () => AddPointModal.open());
+  document.getElementById("retime-in-range").addEventListener("click", () => RetimeBulkModal.open());
 });

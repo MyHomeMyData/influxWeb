@@ -10,7 +10,8 @@ from app.services import ods_io
 
 
 def _make_row(time: str, value=1.0) -> PointRow:
-    return PointRow(id="x", measurement="m", tags={}, field="value", value=value, time=time)
+    value_type = "bool" if isinstance(value, bool) else "float" if isinstance(value, float) else "int"
+    return PointRow(id="x", measurement="m", tags={}, field="value", value=value, value_type=value_type, time=time)
 
 
 def _dummy_doc() -> OpenDocumentSpreadsheet:
@@ -46,6 +47,22 @@ def test_build_ods_instructions_mention_local_zone(monkeypatch):
     assert b"Europe/Berlin" in xml
     assert b"NOT UTC" in xml
     assert b"time_ms" in xml
+
+
+def test_value_cell_uses_declared_type_not_python_type():
+    # Reproduces the export-side instance of the round-trip bug: a row whose
+    # value is a whole-number float (e.g. 60.0, already round-tripped through
+    # the frontend as JSON "60") must still be exported as a float-styled
+    # cell, not silently downgraded to an int-styled one.
+    styles = ods_io._setup_styles(_dummy_doc())
+    cell = ods_io._value_cell(60, "float", styles)
+    assert cell.getAttribute("stylename") == "FloatCell"
+
+
+def test_value_cell_int_type_uses_int_style():
+    styles = ods_io._setup_styles(_dummy_doc())
+    cell = ods_io._value_cell(60, "int", styles)
+    assert cell.getAttribute("stylename") == "IntCell"
 
 
 def test_milliseconds_of_extracts_sub_second_remainder():

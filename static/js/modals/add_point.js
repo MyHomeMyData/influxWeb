@@ -56,7 +56,7 @@ const AddPointModal = {
     }
     this.fieldInput.value = row.field;
     this.valueInput.value = row.value;
-    this.typeSelect.value = typeof row.value === "boolean" ? "boolean" : typeof row.value === "number" ? "number" : "string";
+    this.typeSelect.value = row.value_type;
     this.timeInput.value = row.time;
   },
 
@@ -71,7 +71,7 @@ const AddPointModal = {
     this._addTagRow("q", "0");
     this.fieldInput.value = "value";
     this.valueInput.value = "";
-    this.typeSelect.value = "number";
+    this.typeSelect.value = "float";
     this.timeInput.value = new Date().toISOString();
   },
 
@@ -102,12 +102,12 @@ const AddPointModal = {
   _coerceValue() {
     const raw = this.valueInput.value;
     const type = this.typeSelect.value;
-    if (type === "number") {
+    if (type === "float" || type === "int") {
       const parsed = Number(raw);
       if (Number.isNaN(parsed)) throw new Error("Value is not a valid number.");
-      return parsed;
+      return type === "int" ? Math.trunc(parsed) : parsed;
     }
-    if (type === "boolean") {
+    if (type === "bool") {
       return raw === "true";
     }
     return raw;
@@ -140,6 +140,7 @@ const AddPointModal = {
         tags: this._collectTags(),
         field,
         value,
+        value_type: this.typeSelect.value,
         time,
       });
       this.close();

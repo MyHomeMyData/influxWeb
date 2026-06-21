@@ -1,6 +1,7 @@
 from influxdb_client import InfluxDBClient
 
 from app.models.points import PointRow, Selection, TimeRange
+from app.utils.field_value import value_type_of
 from app.utils.flux import flux_string
 from app.utils.point_id import encode_point_id
 
@@ -75,13 +76,15 @@ def query_points(
             break
         tags = _record_tags(record)
         time_str = record.get_time().isoformat().replace("+00:00", "Z")
+        value = record.get_value()
         rows.append(
             PointRow(
                 id=encode_point_id(selection.bucket, record.get_measurement(), tags, time_str),
                 measurement=record.get_measurement(),
                 tags=tags,
                 field=record.get_field(),
-                value=record.get_value(),
+                value=value,
+                value_type=value_type_of(value),
                 time=time_str,
             )
         )

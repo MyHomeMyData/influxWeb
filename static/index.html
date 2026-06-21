@@ -45,6 +45,7 @@
       <div class="toolbar">
         <button id="export-ods">Export ODS</button>
         <button id="add-point">+ Add point</button>
+        <button id="retime-in-range">Retime in range</button>
         <button id="delete-in-range" class="danger">Delete in range</button>
       </div>
       <p id="status-line" class="status-line"></p>
@@ -94,8 +95,9 @@
       <label>
         Type
         <select id="add-point-type">
-          <option value="number">number</option>
-          <option value="boolean">boolean</option>
+          <option value="float">float</option>
+          <option value="int">int</option>
+          <option value="bool">boolean</option>
           <option value="string">string</option>
         </select>
       </label>
@@ -111,6 +113,65 @@
     </div>
   </div>
 
+  <div id="retime-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Retime points</h2>
+      <label>
+        <input type="radio" name="retime-mode" id="retime-mode-offset" checked />
+        Shift by an offset
+      </label>
+      <label>
+        <input type="radio" name="retime-mode" id="retime-mode-normalize" />
+        Normalize to start of...
+      </label>
+      <div id="retime-offset-fields">
+        <label>
+          Amount (use a negative number to shift backwards)
+          <input id="retime-offset-amount" type="number" step="1" value="1" />
+        </label>
+        <label>
+          Unit
+          <select id="retime-offset-unit">
+            <option value="minutes">minutes</option>
+            <option value="hours">hours</option>
+            <option value="days" selected>days</option>
+            <option value="weeks">weeks</option>
+            <option value="months">months</option>
+            <option value="years">years</option>
+          </select>
+        </label>
+      </div>
+      <div id="retime-normalize-fields" style="display: none">
+        <label>
+          Granularity
+          <select id="retime-normalize-granularity">
+            <option value="hour">hour</option>
+            <option value="day" selected>day</option>
+            <option value="week">week (Monday)</option>
+            <option value="month">month</option>
+            <option value="year">year</option>
+          </select>
+        </label>
+      </div>
+      <p id="retime-modal-error" class="status-line error"></p>
+      <div class="modal-actions">
+        <button id="retime-modal-cancel">Cancel</button>
+        <button id="retime-modal-confirm">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="retime-confirm-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Confirm retime</h2>
+      <div id="retime-confirm-modal-body"></div>
+      <div class="modal-actions">
+        <button id="retime-confirm-modal-cancel">Cancel</button>
+        <button id="retime-confirm-modal-confirm" disabled>Retime</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/vendor/tabulator.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/state.js"></script>
@@ -120,6 +181,8 @@
   <script src="/js/modals/delete_confirm.js"></script>
   <script src="/js/modals/edit_confirm.js"></script>
   <script src="/js/modals/add_point.js"></script>
+  <script src="/js/modals/retime_confirm.js"></script>
+  <script src="/js/modals/retime_bulk.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

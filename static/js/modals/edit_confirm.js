@@ -50,6 +50,7 @@ const EditConfirmModal = {
         tags: this.row.tags,
         field: this.row.field,
         value: this.newValue,
+        value_type: this.row.value_type,
         time: this.row.time,
       });
       this.close();

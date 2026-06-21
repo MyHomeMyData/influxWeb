@@ -50,10 +50,19 @@ function valueCellEditor(cell, onRendered, success, cancel) {
   return input;
 }
 
+function pointKey(measurement, tags, time) {
+  const sortedTags = Object.entries(tags)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join(",");
+  return `${measurement}|${sortedTags}|${time}`;
+}
+
 const ResultsTable = {
-  init(onSelectionChanged, onValueEdited) {
+  init(onSelectionChanged, onValueEdited, onTimeEdited) {
     this.onSelectionChanged = onSelectionChanged ?? (() => {});
     this.onValueEdited = onValueEdited ?? (() => {});
+    this.onTimeEdited = onTimeEdited ?? (() => {});
     this.tabulator = new Tabulator("#results-table", {
       layout: "fitDataStretch",
       height: "65vh",
@@ -67,7 +76,13 @@ const ResultsTable = {
     });
 
     this.tabulator.on("rowSelectionChanged", (data) => this.onSelectionChanged(data));
-    this.tabulator.on("cellEdited", (cell) => this.onValueEdited(cell));
+    this.tabulator.on("cellEdited", (cell) => {
+      if (cell.getField() === "time") {
+        this.onTimeEdited(cell);
+      } else if (cell.getField() === "value") {
+        this.onValueEdited(cell);
+      }
+    });
   },
 
   setRows(rows) {
@@ -83,7 +98,7 @@ const ResultsTable = {
       ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
       { title: "Field", field: "field" },
       { title: "Value", field: "value", editor: valueCellEditor },
-      { title: "Time", field: "time", sorter: "string" },
+      { title: "Time", field: "time", sorter: "string", editable: true, editor: "input" },
     ];
 
     const data = rows.map((row) => {
@@ -102,5 +117,34 @@ const ResultsTable = {
 
   getAllRows() {
     return this.tabulator.getData();
+  },
+
+  // Groups rows into one entry per InfluxDB point (same measurement+tags+time),
+  // merging the field/value pairs of every row in a group into one `fields`
+  // map - a point's fields must always move together when retiming.
+  groupIntoPoints(rows) {
+    const groups = new Map();
+    for (const row of rows) {
+      const key = pointKey(row.measurement, row.tags, row.time);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          measurement: row.measurement,
+          tags: row.tags,
+          time: row.time,
+          fields: {},
+        });
+      }
+      groups.get(key).fields[row.field] = { value: row.value, value_type: row.value_type };
+    }
+    return [...groups.values()];
+  },
+
+  // Finds every currently-loaded row sharing the same point (measurement+tags+
+  // time) as the given one, even if only one of them was selected/edited -
+  // used so a single-row Time edit still moves sibling fields of that point.
+  findPointGroup(measurement, tags, time) {
+    const key = pointKey(measurement, tags, time);
+    const matching = this.getAllRows().filter((row) => pointKey(row.measurement, row.tags, row.time) === key);
+    return this.groupIntoPoints(matching)[0];
   },
 };
