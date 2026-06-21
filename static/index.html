@@ -44,6 +44,7 @@
     <section id="results-panel">
       <div class="toolbar">
         <button id="export-ods">Export ODS</button>
+        <button id="add-point">+ Add point</button>
         <button id="delete-in-range" class="danger">Delete in range</button>
       </div>
       <p id="status-line" class="status-line"></p>
@@ -62,6 +63,54 @@
     </div>
   </div>
 
+  <div id="edit-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Edit value</h2>
+      <div id="edit-modal-body"></div>
+      <div class="modal-actions">
+        <button id="edit-modal-cancel">Cancel</button>
+        <button id="edit-modal-confirm">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-point-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Add point</h2>
+      <label>
+        Measurement
+        <input id="add-point-measurement" type="text" />
+      </label>
+      <div id="add-point-tag-rows"></div>
+      <button id="add-point-add-tag" type="button">+ Add tag</button>
+      <label>
+        Field
+        <input id="add-point-field" type="text" />
+      </label>
+      <label>
+        Value
+        <input id="add-point-value" type="text" />
+      </label>
+      <label>
+        Type
+        <select id="add-point-type">
+          <option value="number">number</option>
+          <option value="boolean">boolean</option>
+          <option value="string">string</option>
+        </select>
+      </label>
+      <label>
+        Time
+        <input id="add-point-time" type="text" />
+      </label>
+      <p id="add-point-error" class="status-line error"></p>
+      <div class="modal-actions">
+        <button id="add-point-cancel">Cancel</button>
+        <button id="add-point-confirm">Add</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/vendor/tabulator.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/state.js"></script>
@@ -69,6 +118,8 @@
   <script src="/js/filter_builder.js"></script>
   <script src="/js/table.js"></script>
   <script src="/js/modals/delete_confirm.js"></script>
+  <script src="/js/modals/edit_confirm.js"></script>
+  <script src="/js/modals/add_point.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

@@ -45,6 +45,16 @@ const Api = {
     return Api._post("/api/delete/points/execute", { points, confirm_token: confirmToken });
   },
 
+  async writePoint(point) {
+    return Api._json(
+      await fetch("/api/points", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(point),
+      })
+    );
+  },
+
   async _post(url, body) {
     return Api._json(
       await fetch(url, {

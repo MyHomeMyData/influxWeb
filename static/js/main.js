@@ -88,9 +88,24 @@ function updateToolbarLabels(selectedRows) {
   document.getElementById("delete-in-range").textContent = `Delete all (${total})`;
 }
 
+async function onPointSaved() {
+  await applyQuery();
+  setStatus("Point updated.");
+}
+
+async function onPointAdded() {
+  await applyQuery();
+  setStatus("Point added.");
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
-  ResultsTable.init((selectedRows) => updateToolbarLabels(selectedRows));
+  ResultsTable.init(
+    (selectedRows) => updateToolbarLabels(selectedRows),
+    (cell) => EditConfirmModal.open(cell)
+  );
   DeleteConfirmModal.init(applyQuery);
+  EditConfirmModal.init(onPointSaved);
+  AddPointModal.init(onPointAdded);
 
   await BucketSelect.init(async () => {
     await FilterBuilder.render(applyQuery);
@@ -104,4 +119,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("export-ods").addEventListener("click", exportOds);
   document.getElementById("clear-selection").addEventListener("click", clearSelection);
   document.getElementById("delete-in-range").addEventListener("click", () => DeleteConfirmModal.open());
+  document.getElementById("add-point").addEventListener("click", () => AddPointModal.open());
 });

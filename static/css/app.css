@@ -237,3 +237,32 @@ button.danger:disabled {
   padding: 0.25rem 0.4rem;
   text-align: left;
 }
+
+#add-point-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+}
+
+#add-point-modal input,
+#add-point-modal select {
+  padding: 0.3rem;
+}
+
+.tag-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.tag-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cell-editor {
+  width: 100%;
+  box-sizing: border-box;
+}
