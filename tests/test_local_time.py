@@ -5,6 +5,10 @@ from app.utils.local_time import normalize_time, shift_time
 BERLIN = ZoneInfo("Europe/Berlin")
 
 
+def test_normalize_minute_truncates_seconds_microseconds():
+    assert normalize_time("2026-06-24T10:34:56.789Z", "minute", zone=BERLIN) == "2026-06-24T10:34:00Z"
+
+
 def test_normalize_hour_truncates_minutes_seconds_microseconds():
     assert normalize_time("2026-06-24T10:34:56.789Z", "hour", zone=BERLIN) == "2026-06-24T10:00:00Z"
 

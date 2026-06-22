@@ -35,7 +35,7 @@ class RetimeOffsetComputeRequest(BaseModel):
 
 class RetimeNormalizeComputeRequest(BaseModel):
     points: list[PointGroup]
-    granularity: Literal["hour", "day", "week", "month", "year"]
+    granularity: Literal["minute", "hour", "day", "week", "month", "year"]
 
 
 class RetimeComputeResponse(BaseModel):

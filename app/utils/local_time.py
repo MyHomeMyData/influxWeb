@@ -6,7 +6,7 @@ from app.utils.time import ns_to_rfc3339, rfc3339_to_ns
 from app.utils.timezone import get_local_zone
 
 OffsetUnit = Literal["minutes", "hours", "days", "weeks", "months", "years"]
-NormalizeGranularity = Literal["hour", "day", "week", "month", "year"]
+NormalizeGranularity = Literal["minute", "hour", "day", "week", "month", "year"]
 
 
 def _to_local(time_str: str, zone: tzinfo) -> datetime:
@@ -41,7 +41,10 @@ def shift_time(time_str: str, amount: int, unit: OffsetUnit, zone: tzinfo | None
 
 
 def _truncate(dt: datetime, granularity: NormalizeGranularity) -> datetime:
-    dt = dt.replace(microsecond=0, second=0, minute=0)
+    dt = dt.replace(microsecond=0, second=0)
+    if granularity == "minute":
+        return dt
+    dt = dt.replace(minute=0)
     if granularity == "hour":
         return dt
     dt = dt.replace(hour=0)
