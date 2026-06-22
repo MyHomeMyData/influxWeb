@@ -25,6 +25,12 @@ Early development. Currently implemented:
 - Export to ODS (whole query result, or just the selected rows), with proper
   cell types (numbers, booleans, dates) and an instructions block describing
   the round-trip contract for a later import
+- Import from ODS: re-upload a previously exported (and possibly hand-edited)
+  file. A dry-run preview shows what would be written, which bucket(s) the
+  file targets, and any rows that will be skipped (with a reason) before you
+  confirm. Edited rows overwrite the matching point; new rows create one;
+  deleted rows are left untouched in InfluxDB (import only writes, never
+  deletes)
 - Delete points - either exactly the selected rows, or (with nothing selected)
   every row currently loaded in the table - with a preview and explicit
   confirmation before anything is deleted
@@ -32,9 +38,12 @@ Early development. Currently implemented:
   confirm-before-save step, or add a brand-new point via a separate modal -
   both share the same write path (overwrite by measurement+tags+timestamp,
   last-write-wins, same as InfluxDB itself)
-
-Planned next: retime, timestamp normalization, ODS import — each behind the
-same preview/confirm pattern used for delete.
+- Retime points: shift the timestamp of selected (or all loaded) points by a
+  calendar-aware offset, or normalize them to the start of the
+  minute/hour/day/week/month/year (local time, DST-aware) — both via the
+  "Retime in range" button with the usual preview/confirm step. A single
+  point's timestamp can also be edited in place (double-click a cell in the
+  Time column)
 
 ## Sorting
 

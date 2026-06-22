@@ -16,7 +16,11 @@ def _to_local(time_str: str, zone: tzinfo) -> datetime:
     return dt_utc.astimezone(zone)
 
 
-def _to_rfc3339(dt_local: datetime) -> str:
+def local_datetime_to_rfc3339(dt_local: datetime) -> str:
+    # Shared by shift_time()/normalize_time() below and by ods_io.py's ODS
+    # import parsing, which both need to turn a local-time-zone-aware
+    # datetime back into the app's standard UTC RFC3339 string, with the same
+    # integer-nanosecond-safe precision as the rest of app/utils/time.py.
     dt_utc = dt_local.astimezone(timezone.utc)
     epoch_seconds = int(dt_utc.replace(microsecond=0).timestamp())
     ns = epoch_seconds * 1_000_000_000 + dt_utc.microsecond * 1_000
@@ -37,7 +41,7 @@ def _add_calendar(dt: datetime, amount: int, unit: OffsetUnit) -> datetime:
 def shift_time(time_str: str, amount: int, unit: OffsetUnit, zone: tzinfo | None = None) -> str:
     dt_local = _to_local(time_str, zone or get_local_zone())
     shifted = _add_calendar(dt_local, amount, unit)
-    return _to_rfc3339(shifted)
+    return local_datetime_to_rfc3339(shifted)
 
 
 def _truncate(dt: datetime, granularity: NormalizeGranularity) -> datetime:
@@ -60,4 +64,4 @@ def _truncate(dt: datetime, granularity: NormalizeGranularity) -> datetime:
 def normalize_time(time_str: str, granularity: NormalizeGranularity, zone: tzinfo | None = None) -> str:
     dt_local = _to_local(time_str, zone or get_local_zone())
     truncated = _truncate(dt_local, granularity)
-    return _to_rfc3339(truncated)
+    return local_datetime_to_rfc3339(truncated)

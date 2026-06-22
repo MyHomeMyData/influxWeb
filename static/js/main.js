@@ -105,6 +105,17 @@ async function onPointsRetimed(count) {
   setStatus(`${count} point(s) retimed.`);
 }
 
+async function onOdsImported(result) {
+  // The imported file may target a different bucket than the one currently
+  // shown - only re-query if it's relevant, otherwise just report the count.
+  const importedCurrentBucket = State.bucket && result.buckets.includes(State.bucket);
+  if (importedCurrentBucket) {
+    await applyQuery();
+  }
+  const errorNote = result.errors.length > 0 ? `, ${result.errors.length} row(s) skipped` : "";
+  setStatus(`${result.written_count} point(s) imported${errorNote}.`, result.errors.length > 0 ? "error" : "");
+}
+
 function onTimeEdited(cell) {
   const row = cell.getRow().getData();
   const oldTime = cell.getOldValue();
@@ -141,6 +152,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   AddPointModal.init(onPointAdded);
   RetimeConfirmModal.init(onPointsRetimed);
   RetimeBulkModal.init();
+  ImportOdsModal.init(onOdsImported);
 
   await BucketSelect.init(async () => {
     await FilterBuilder.render(applyQuery);
@@ -152,6 +164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyQuery();
   });
   document.getElementById("export-ods").addEventListener("click", exportOds);
+  document.getElementById("import-ods").addEventListener("click", () => ImportOdsModal.open());
   document.getElementById("clear-selection").addEventListener("click", clearSelection);
   document.getElementById("delete-in-range").addEventListener("click", () => DeleteConfirmModal.open());
   document.getElementById("add-point").addEventListener("click", () => AddPointModal.open());

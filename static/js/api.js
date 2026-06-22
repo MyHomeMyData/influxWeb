@@ -71,6 +71,14 @@ const Api = {
     return Api._post("/api/retime/execute", { points, confirm_token: confirmToken });
   },
 
+  async importOds(file, dryRun) {
+    const body = new FormData();
+    body.set("file", file);
+    body.set("dry_run", dryRun ? "true" : "false");
+    // No Content-Type header here - the browser sets the multipart boundary itself.
+    return Api._json(await fetch("/api/import/ods", { method: "POST", body }));
+  },
+
   async _post(url, body) {
     return Api._json(
       await fetch(url, {

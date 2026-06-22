@@ -44,6 +44,7 @@
     <section id="results-panel">
       <div class="toolbar">
         <button id="export-ods">Export ODS</button>
+        <button id="import-ods">Import ODS</button>
         <button id="add-point">+ Add point</button>
         <button id="retime-in-range">Retime in range</button>
         <button id="delete-in-range" class="danger">Delete in range</button>
@@ -173,6 +174,21 @@
     </div>
   </div>
 
+  <div id="import-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Import ODS</h2>
+      <label>
+        File
+        <input id="import-file" type="file" accept=".ods" />
+      </label>
+      <div id="import-modal-body"></div>
+      <div class="modal-actions">
+        <button id="import-modal-cancel">Cancel</button>
+        <button id="import-modal-confirm" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/vendor/tabulator.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/state.js"></script>
@@ -184,6 +200,7 @@
   <script src="/js/modals/add_point.js"></script>
   <script src="/js/modals/retime_confirm.js"></script>
   <script src="/js/modals/retime_bulk.js"></script>
+  <script src="/js/modals/import_ods.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>
