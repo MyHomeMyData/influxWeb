@@ -121,6 +121,13 @@ main {
   min-width: 0;
 }
 
+.view-toggle {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
 .toolbar {
   display: flex;
   gap: 0.5rem;
@@ -131,6 +138,10 @@ main {
 .toolbar button {
   padding: 0.4rem 0.8rem;
   cursor: pointer;
+}
+
+#stats-table {
+  display: none;
 }
 
 .status-line {

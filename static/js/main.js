@@ -25,6 +25,7 @@ async function applyQuery() {
   try {
     const result = await Api.queryPoints(buildEffectiveSelection());
     ResultsTable.setRows(result.points);
+    StatsTable.setRows(result.points);
     updateToolbarLabels(ResultsTable.getSelectedRows());
     if (result.truncated) {
       setStatus(
@@ -82,8 +83,30 @@ function clearSelection() {
   FilterBuilder.filterByText("");
 
   ResultsTable.setRows([]);
+  StatsTable.setRows([]);
   updateToolbarLabels([]);
   setStatus("Selection cleared - choose a measurement or tag value");
+}
+
+function setView(mode) {
+  const isStats = mode === "stats";
+  document.getElementById("results-table").style.display = isStats ? "none" : "";
+  // "" (clear inline override) would fall back to app.css's
+  // `#stats-table { display: none; }` default-hidden rule, not show it -
+  // so showing it needs an explicit value, unlike results-table above
+  // which has no such stylesheet rule to fight against.
+  document.getElementById("stats-table").style.display = isStats ? "block" : "none";
+  // None of the toolbar actions (Export/Import/Add/Retime/Delete) have a
+  // sensible meaning against summary rows - they all act on individual
+  // points or a Data View row selection, which isn't visible here.
+  document.querySelector(".toolbar").style.display = isStats ? "none" : "";
+  if (isStats) {
+    // Constructing Tabulator against a display:none container fails to
+    // measure it at all, so the actual instance is created lazily here -
+    // the first time the container is genuinely visible - rather than at
+    // page load.
+    StatsTable.ensureInitialized();
+  }
 }
 
 function updateToolbarLabels(selectedRows) {
@@ -169,6 +192,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   RetimeBulkModal.init();
   ImportOdsModal.init(onOdsImported);
   ImportRawModal.init(onRawImported);
+
+  document.getElementById("view-data").addEventListener("change", () => setView("data"));
+  document.getElementById("view-stats").addEventListener("change", () => setView("stats"));
 
   await BucketSelect.init(async () => {
     await FilterBuilder.render(applyQuery);

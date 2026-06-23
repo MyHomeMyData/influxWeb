@@ -52,6 +52,10 @@
     </section>
 
     <section id="results-panel">
+      <div class="view-toggle">
+        <label><input type="radio" name="results-view" id="view-data" checked /> Data View</label>
+        <label><input type="radio" name="results-view" id="view-stats" /> Statistical View</label>
+      </div>
       <div class="toolbar">
         <button id="export-ods">Export ODS</button>
         <button id="import-ods">Import ODS</button>
@@ -63,6 +67,7 @@
       </div>
       <p id="status-line" class="status-line"></p>
       <div id="results-table"></div>
+      <div id="stats-table"></div>
     </section>
   </main>
 
@@ -227,6 +232,7 @@
   <script src="/js/bucket_select.js"></script>
   <script src="/js/filter_builder.js"></script>
   <script src="/js/table.js"></script>
+  <script src="/js/stats_table.js"></script>
   <script src="/js/modals/delete_confirm.js"></script>
   <script src="/js/modals/edit_confirm.js"></script>
   <script src="/js/modals/add_point.js"></script>
