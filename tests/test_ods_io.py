@@ -151,6 +151,15 @@ def test_parse_ods_round_trips_build_ods_output(monkeypatch):
     assert requests[3].value_type == "int"
 
 
+def test_parse_ods_garbage_content_raises_value_error():
+    # A non-ODS upload (wrong file picked, truncated download, ...) fails
+    # inside odfpy with a library-internal exception type (BadZipFile here) -
+    # parse_ods() must normalize that to a ValueError like its own structural
+    # errors, not let it escape as something the router doesn't expect.
+    with pytest.raises(ValueError, match="could not read this as an ODS file"):
+        ods_io.parse_ods(b"not an ods file")
+
+
 def test_parse_ods_missing_required_column_raises():
     header = ["bucket", "measurement", "field", "value", "value_type", "time"]  # no time_ms
     content = _build_minimal_ods(header, [["b", "m", "f", "1", "int", "irrelevant"]])

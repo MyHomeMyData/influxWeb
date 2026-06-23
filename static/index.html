@@ -45,6 +45,8 @@
       <div class="toolbar">
         <button id="export-ods">Export ODS</button>
         <button id="import-ods">Import ODS</button>
+        <button id="export-raw">Export Raw</button>
+        <button id="import-raw">Import Raw</button>
         <button id="add-point">+ Add point</button>
         <button id="retime-in-range">Retime in range</button>
         <button id="delete-in-range" class="danger">Delete in range</button>
@@ -189,6 +191,26 @@
     </div>
   </div>
 
+  <div id="import-raw-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Import Raw</h2>
+      <p class="status-line">
+        Writes every row straight into the active bucket ("<span id="import-raw-bucket-name"></span>"),
+        with no preview - only use a file you trust (e.g. one from Export Raw).
+        Stops at the first row it can't parse or write.
+      </p>
+      <label>
+        File
+        <input id="import-raw-file" type="file" accept=".csv" />
+      </label>
+      <p id="import-raw-modal-error" class="status-line error"></p>
+      <div class="modal-actions">
+        <button id="import-raw-modal-cancel">Cancel</button>
+        <button id="import-raw-modal-confirm" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/vendor/tabulator.min.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/state.js"></script>
@@ -201,6 +223,7 @@
   <script src="/js/modals/retime_confirm.js"></script>
   <script src="/js/modals/retime_bulk.js"></script>
   <script src="/js/modals/import_ods.js"></script>
+  <script src="/js/modals/import_raw.js"></script>
   <script src="/js/main.js"></script>
 </body>
 </html>

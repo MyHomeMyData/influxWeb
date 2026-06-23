@@ -249,9 +249,19 @@ def _find_header_row(rows: list[TableRow]) -> tuple[int, list[str]]:
 
 
 def parse_ods(content: bytes) -> tuple[list[tuple[int, PointWriteRequest]], list[ImportRowError]]:
-    doc = load(io.BytesIO(content))
-    table = doc.spreadsheet.getElementsByType(Table)[0]
-    rows = table.getElementsByType(TableRow)
+    try:
+        # A non-ODS or corrupted upload fails here with a library-internal
+        # exception type (BadZipFile, KeyError for a missing manifest, an XML
+        # parser error, ...) - normalize all of those to ValueError so the
+        # router only ever has to handle one "this file is structurally bad"
+        # exception type, alongside the ValueErrors raised explicitly below.
+        doc = load(io.BytesIO(content))
+        table = doc.spreadsheet.getElementsByType(Table)[0]
+        rows = table.getElementsByType(TableRow)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(f"could not read this as an ODS file: {exc}") from exc
 
     header_index, header = _find_header_row(rows)
     missing_columns = [column for column in REQUIRED_IMPORT_COLUMNS if column not in header]

@@ -79,6 +79,25 @@ const Api = {
     return Api._json(await fetch("/api/import/ods", { method: "POST", body }));
   },
 
+  async exportRawBlob(bucket, start, stop) {
+    const response = await fetch("/api/export/raw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bucket, start, stop }),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    return response.blob();
+  },
+
+  async importRaw(file, bucket) {
+    const body = new FormData();
+    body.set("file", file);
+    body.set("bucket", bucket);
+    return Api._json(await fetch("/api/import/raw", { method: "POST", body }));
+  },
+
   async _post(url, body) {
     return Api._json(
       await fetch(url, {

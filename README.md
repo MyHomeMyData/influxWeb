@@ -31,6 +31,13 @@ Early development. Currently implemented:
   confirm. Edited rows overwrite the matching point; new rows create one;
   deleted rows are left untouched in InfluxDB (import only writes, never
   deletes)
+- Export Raw / Import Raw: a deliberately bare-bones pair for CLI/scripting
+  interop, using InfluxDB's own annotated CSV format (`influx query`/
+  `influx write --format csv`). Export Raw dumps the *entire* active bucket
+  for the current time range in one query, no measurement/tag filtering.
+  Import Raw writes a single-schema CSV file straight into the active
+  bucket with no preview - it stops at the first row it can't parse or
+  write, rather than trying to validate the whole file upfront
 - Delete points - either exactly the selected rows, or (with nothing selected)
   every row currently loaded in the table - with a preview and explicit
   confirmation before anything is deleted

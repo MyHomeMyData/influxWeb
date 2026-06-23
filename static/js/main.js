@@ -63,6 +63,16 @@ async function exportOds() {
   }
 }
 
+async function exportRaw() {
+  if (!State.bucket) return;
+  try {
+    const blob = await Api.exportRawBlob(State.bucket, State.rangeStart, State.rangeStop);
+    downloadBlob("influxweb-export.csv", blob);
+  } catch (error) {
+    setStatus(`Export failed: ${error.message}`, "error");
+  }
+}
+
 function clearSelection() {
   State.clearSelection();
   FilterBuilder.clearSelectionVisuals();
@@ -79,13 +89,13 @@ function clearSelection() {
 function updateToolbarLabels(selectedRows) {
   const count = selectedRows.length;
   if (count > 0) {
-    document.getElementById("export-ods").textContent = `Export selected (${count})`;
+    document.getElementById("export-ods").textContent = `Export ODS selected (${count})`;
     document.getElementById("retime-in-range").textContent = `Retime selected (${count})`;
     document.getElementById("delete-in-range").textContent = `Delete selected (${count})`;
     return;
   }
   const total = ResultsTable.getAllRows().length;
-  document.getElementById("export-ods").textContent = `Export all (${total})`;
+  document.getElementById("export-ods").textContent = `Export ODS all (${total})`;
   document.getElementById("retime-in-range").textContent = `Retime all (${total})`;
   document.getElementById("delete-in-range").textContent = `Delete all (${total})`;
 }
@@ -114,6 +124,11 @@ async function onOdsImported(result) {
   }
   const errorNote = result.errors.length > 0 ? `, ${result.errors.length} row(s) skipped` : "";
   setStatus(`${result.written_count} point(s) imported${errorNote}.`, result.errors.length > 0 ? "error" : "");
+}
+
+async function onRawImported(result) {
+  await applyQuery();
+  setStatus(`${result.written_count} point(s) imported.`);
 }
 
 function onTimeEdited(cell) {
@@ -153,6 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   RetimeConfirmModal.init(onPointsRetimed);
   RetimeBulkModal.init();
   ImportOdsModal.init(onOdsImported);
+  ImportRawModal.init(onRawImported);
 
   await BucketSelect.init(async () => {
     await FilterBuilder.render(applyQuery);
@@ -165,6 +181,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   document.getElementById("export-ods").addEventListener("click", exportOds);
   document.getElementById("import-ods").addEventListener("click", () => ImportOdsModal.open());
+  document.getElementById("export-raw").addEventListener("click", exportRaw);
+  document.getElementById("import-raw").addEventListener("click", () => ImportRawModal.open());
   document.getElementById("clear-selection").addEventListener("click", clearSelection);
   document.getElementById("delete-in-range").addEventListener("click", () => DeleteConfirmModal.open());
   document.getElementById("add-point").addEventListener("click", () => AddPointModal.open());

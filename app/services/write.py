@@ -6,15 +6,18 @@ from app.utils.field_value import coerce_field_value
 from app.utils.time import rfc3339_to_ns
 
 
-def write_point(client: InfluxDBClient, org: str, request: PointWriteRequest) -> None:
+def build_point(request: PointWriteRequest) -> Point:
     point = Point(request.measurement)
     for key, value in request.tags.items():
         point = point.tag(key, value)
     point = point.field(request.field, coerce_field_value(request.value, request.value_type))
     point = point.time(rfc3339_to_ns(request.time), WritePrecision.NS)
+    return point
 
+
+def write_point(client: InfluxDBClient, org: str, request: PointWriteRequest) -> None:
     # write_api() defaults to async batching, which wouldn't reliably surface
     # errors or guarantee the write has landed before this function returns -
     # SYNCHRONOUS makes it a plain blocking call, like delete_api() already is.
     write_api = client.write_api(write_options=SYNCHRONOUS)
-    write_api.write(bucket=request.bucket, org=org, record=point)
+    write_api.write(bucket=request.bucket, org=org, record=build_point(request))
