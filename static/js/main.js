@@ -19,11 +19,19 @@ function setStatus(text, kind = "") {
   status.className = kind ? `status-line ${kind}` : "status-line";
 }
 
+// Every tree click fires its own applyQuery() without waiting for earlier
+// ones to finish, so responses can arrive out of order. This token lets a
+// response detect it's been superseded - by a later query or by
+// clearSelection() - and skip applying its (now stale) result.
+let queryToken = 0;
+
 async function applyQuery() {
   if (!State.bucket) return;
+  const token = ++queryToken;
   setStatus("Querying...", "querying");
   try {
     const result = await Api.queryPoints(buildEffectiveSelection());
+    if (token !== queryToken) return;
     ResultsTable.setRows(result.points);
     StatsTable.setRows(result.points);
     updateToolbarLabels(ResultsTable.getSelectedRows());
@@ -36,6 +44,7 @@ async function applyQuery() {
       setStatus(`${result.points.length} points`);
     }
   } catch (error) {
+    if (token !== queryToken) return;
     setStatus(`Query failed: ${error.message}`, "error");
   }
 }
@@ -75,6 +84,9 @@ async function exportRaw() {
 }
 
 function clearSelection() {
+  // Invalidate any query still in flight from an earlier tree click, so its
+  // response can't land after this and repopulate the table just cleared.
+  queryToken += 1;
   State.clearSelection();
   FilterBuilder.clearSelectionVisuals();
 
