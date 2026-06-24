@@ -1,5 +1,6 @@
 # Local data
 .local_data/
+.env
 
 # Python
 .venv/

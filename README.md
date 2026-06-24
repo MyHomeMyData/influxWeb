@@ -78,29 +78,65 @@ read one measurement's values in chronological order without any extra UI:
 
 ## Setup
 
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-cp .env.example .local_data/config.env   # then fill in INFLUX_URL / INFLUX_TOKEN / INFLUX_ORG
-```
+Installs influxWeb as a systemd service on a Raspberry Pi (or any Linux host with
+systemd), running under its own dedicated system user, into `/opt/influxweb`.
 
-## Run (development)
+### Quick install
 
 ```bash
-.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8085
+curl -sLf https://raw.githubusercontent.com/MyHomeMyData/influxWeb/main/deploy/install.sh | sudo bash -
 ```
 
-Open `http://localhost:8085/` (or `http://<host>:8085/` from another machine on the LAN -
-uvicorn only listens on `127.0.0.1` unless `--host 0.0.0.0` is passed explicitly).
+This clones the repo into `/opt/influxweb`, creates the dedicated `influxweb`
+system user, sets up the virtual environment, installs the systemd unit, and
+installs the `influxweb-upgrade`/`influxweb-uninstall` commands (see
+[Upgrading](#upgrading) and [Uninstalling](#uninstalling)) — it does not start
+the service yet, since InfluxDB access still needs to be configured. After it
+finishes:
 
-## Deployment (Raspberry Pi, systemd)
+1. Fill in InfluxDB access:
+   ```bash
+   sudo -u influxweb nano /opt/influxweb/.env   # fill in INFLUX_URL / INFLUX_TOKEN / INFLUX_ORG
+   ```
+2. Start the service:
+   ```bash
+   sudo systemctl enable --now influxweb
+   ```
+3. Open `http://<pi-host>:8085/` from another machine on your LAN.
 
-See `deploy/influxweb.service` for a unit template. Install into e.g. `/opt/influxweb`,
-create the venv there, copy `.local_data/config.env` into place (never commit it), then:
+### Manual installation
 
-```bash
-sudo systemctl enable --now influxweb
-```
+Equivalent step-by-step version of the above, if you'd rather not pipe a script
+into `sudo bash`, or want to adjust something along the way.
+
+1. Clone the repository:
+   ```bash
+   sudo git clone https://github.com/MyHomeMyData/influxWeb.git /opt/influxweb
+   ```
+2. Create a dedicated system user (matches `User=`/`Group=` in
+   `deploy/influxweb.service`) and hand it ownership of the install:
+   ```bash
+   sudo useradd --system --no-create-home --shell /usr/sbin/nologin influxweb
+   sudo chown -R influxweb:influxweb /opt/influxweb
+   ```
+3. Create the virtual environment and install dependencies:
+   ```bash
+   sudo -u influxweb python3 -m venv /opt/influxweb/.venv
+   sudo -u influxweb /opt/influxweb/.venv/bin/pip install -r /opt/influxweb/requirements.txt
+   ```
+4. Configure InfluxDB access:
+   ```bash
+   sudo -u influxweb cp /opt/influxweb/.env.example /opt/influxweb/.env
+   sudo -u influxweb nano /opt/influxweb/.env   # fill in INFLUX_URL / INFLUX_TOKEN / INFLUX_ORG
+   ```
+   `.env` is gitignored — never commit it.
+5. Install and start the systemd service:
+   ```bash
+   sudo cp /opt/influxweb/deploy/influxweb.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now influxweb
+   ```
+6. Open `http://<pi-host>:8085/` from another machine on your LAN.
 
 influxWeb binds `0.0.0.0` by default — keep it reachable only from your LAN (no
 router port-forward); there is no authentication built in.
@@ -108,18 +144,53 @@ router port-forward); there is no authentication built in.
 ### Upgrading
 
 ```bash
+sudo influxweb-upgrade
+```
+
+Installed automatically by Quick install above — pulls the latest code, updates
+dependencies, and restarts the service. If you used the manual installation
+instead, do the same steps by hand:
+
+```bash
 cd /opt/influxweb
-git pull
-.venv/bin/pip install -r requirements.txt
+sudo -u influxweb git pull
+sudo -u influxweb .venv/bin/pip install -r requirements.txt
 sudo systemctl restart influxweb
 ```
 
 Check the [Changelog](#changelog) below for anything version-specific to be aware
 of before upgrading. The current running version is shown in the page header.
 
+### Uninstalling
+
+```bash
+sudo influxweb-uninstall
+```
+
+Installed automatically by Quick install above. After a confirmation prompt,
+stops and removes the service, `/opt/influxweb` (including `.env`), the
+`influxweb` system user, and the `influxweb-upgrade`/`influxweb-uninstall`
+commands themselves. If you used the manual installation, you're on your own
+for cleanup — stop/disable the service, then remove the systemd unit,
+`/opt/influxweb`, and the system user.
+
+## Temporary setup for testing
+
+For trying out influxWeb without installing it as a service:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env   # then fill in INFLUX_URL / INFLUX_TOKEN / INFLUX_ORG
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8085
+```
+
+Open `http://localhost:8085/` (or `http://<host>:8085/` from another machine on the LAN -
+uvicorn only listens on `127.0.0.1` unless `--host 0.0.0.0` is passed explicitly).
+
 ## Changelog
 
-### 0.1.0 (2026-06-23)
+### 0.1.0 (2026-06-24)
 
 Initial beta release.
 
