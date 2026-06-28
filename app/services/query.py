@@ -89,4 +89,14 @@ def query_points(
             )
         )
 
+    # Without a differentiating tag, Flux returns one table per field (ioBroker's
+    # "store as fields" mode has no tags at all) - query_stream() yields rows
+    # table-by-table, so every "ack" row across the whole range comes before any
+    # "from"/"q"/"value" row, instead of grouped by timestamp like a single-field,
+    # tag-differentiated point naturally is. Sorting restores chronological order
+    # and keeps same-timestamp fields adjacent either way. RFC3339 timestamps with
+    # uniform precision/UTC sort correctly as plain strings, same property the
+    # frontend's Time column sort already relies on.
+    rows.sort(key=lambda row: (row.time, row.field))
+
     return rows, truncated

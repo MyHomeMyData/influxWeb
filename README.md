@@ -15,6 +15,14 @@ This project was developed against an ioBroker InfluxDB-history setup specifical
 choices) — it should work against any InfluxDB v2 instance, but has not yet been
 tested outside that one environment.
 
+Currently, ioBroker buckets using tag-based storage ("use tags to store metadata
+information, instead of fields" enabled in the InfluxDB adapter's Expert config tab)
+are best supported. With that option disabled, browsing/querying, Export, Import,
+Edit, Retime, and Delete all still work correctly — but "+ Add point" should not be
+used, since it assumes the tag-based convention and has no way to create a complete
+multi-field point in one step. The Data View also shows one row per field rather than
+one row per logical reading in that mode (cosmetic only).
+
 ## Features
 
 - Bucket selection
@@ -192,6 +200,12 @@ Open `http://localhost:8085/` (or `http://<host>:8085/` from another machine on 
 uvicorn only listens on `127.0.0.1` unless `--host 0.0.0.0` is passed explicitly).
 
 ## Changelog
+
+### 0.1.1 (2026-06-28)
+
+Fixed an unfiltered selection querying the entire bucket, and incorrect row order for
+ioBroker's field-based storage mode. Documented current support boundaries between
+ioBroker's tag-based and field-based storage modes.
 
 ### 0.1.0 (2026-06-24)
 

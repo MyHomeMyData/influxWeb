@@ -41,6 +41,67 @@ def _selection() -> tuple[Selection, TimeRange]:
     return Selection(bucket="b"), TimeRange(start="-1h", stop="now()")
 
 
+class _FakeMultiFieldRecord:
+    # Reproduces ioBroker's "store as fields" mode: ack/from/q/value have no
+    # differentiating tag, so Flux returns one table per field - this fake
+    # client yields them table-by-table (all "ack" rows, then all "from"
+    # rows, ...), not interleaved by time, exactly like query_stream() does
+    # for that real shape.
+    def __init__(self, field: str, time, value):
+        self.values = {"_measurement": "m", "_field": field, "result": "_result", "table": 0}
+        self._time = time
+        self._field = field
+        self._value = value
+
+    def get_time(self):
+        return self._time
+
+    def get_measurement(self):
+        return "m"
+
+    def get_field(self):
+        return self._field
+
+    def get_value(self):
+        return self._value
+
+
+class _FakeMultiFieldQueryApi:
+    def __init__(self, records):
+        self._records = records
+
+    def query_stream(self, flux):
+        return iter(self._records)
+
+
+class _FakeMultiFieldClient:
+    def __init__(self, records):
+        self._records = records
+
+    def query_api(self):
+        return _FakeMultiFieldQueryApi(self._records)
+
+
+def test_rows_from_separate_field_tables_are_sorted_by_time():
+    t1 = datetime(2026, 6, 18, 10, 0, 0, tzinfo=timezone.utc)
+    t2 = datetime(2026, 6, 18, 10, 0, 1, tzinfo=timezone.utc)
+    records = [
+        _FakeMultiFieldRecord("ack", t1, True),
+        _FakeMultiFieldRecord("ack", t2, True),
+        _FakeMultiFieldRecord("value", t1, 36.5),
+        _FakeMultiFieldRecord("value", t2, 36.6),
+    ]
+    selection, time_range = _selection()
+    rows, _ = query_service.query_points(_FakeMultiFieldClient(records), selection, time_range, None)
+
+    assert [(row.time, row.field) for row in rows] == [
+        (t1.isoformat().replace("+00:00", "Z"), "ack"),
+        (t1.isoformat().replace("+00:00", "Z"), "value"),
+        (t2.isoformat().replace("+00:00", "Z"), "ack"),
+        (t2.isoformat().replace("+00:00", "Z"), "value"),
+    ]
+
+
 def test_result_under_cap_is_not_truncated():
     selection, time_range = _selection()
     rows, truncated = query_service.query_points(_FakeClient(5), selection, time_range, None)

@@ -27,10 +27,21 @@ let queryToken = 0;
 
 async function applyQuery() {
   if (!State.bucket) return;
+  const selection = buildEffectiveSelection();
+  if (selection.measurements.length === 0 && Object.keys(selection.tags).length === 0) {
+    // Nothing explicitly chosen - querying would otherwise mean "no filter at
+    // all", i.e. the entire bucket for the current time range. Same
+    // "pick something first" stance clearSelection() already takes below.
+    ResultsTable.setRows([]);
+    StatsTable.setRows([]);
+    updateToolbarLabels([]);
+    setStatus("Select a measurement or tag value to see points");
+    return;
+  }
   const token = ++queryToken;
   setStatus("Querying...", "querying");
   try {
-    const result = await Api.queryPoints(buildEffectiveSelection());
+    const result = await Api.queryPoints(selection);
     if (token !== queryToken) return;
     ResultsTable.setRows(result.points);
     StatsTable.setRows(result.points);
