@@ -59,6 +59,10 @@ function pointKey(measurement, tags, time) {
 }
 
 const ResultsTable = {
+  rawRows: [],
+  groupByPoint: false,
+  groupedRowsByKey: new Map(),
+
   init(onSelectionChanged, onValueEdited, onTimeEdited) {
     this.onSelectionChanged = onSelectionChanged ?? (() => {});
     this.onValueEdited = onValueEdited ?? (() => {});
@@ -75,7 +79,7 @@ const ResultsTable = {
       data: [],
     });
 
-    this.tabulator.on("rowSelectionChanged", (data) => this.onSelectionChanged(data));
+    this.tabulator.on("rowSelectionChanged", () => this.onSelectionChanged(this.getSelectedRows()));
     this.tabulator.on("cellEdited", (cell) => {
       if (cell.getField() === "time") {
         this.onTimeEdited(cell);
@@ -85,38 +89,99 @@ const ResultsTable = {
     });
   },
 
+  setGroupByPoint(enabled) {
+    this.groupByPoint = enabled;
+    this._render();
+  },
+
   setRows(rows) {
-    const tagKeys = [];
-    for (const row of rows) {
-      for (const key of Object.keys(row.tags)) {
-        if (!tagKeys.includes(key)) tagKeys.push(key);
-      }
+    this.rawRows = [...rows];
+    this._render();
+  },
+
+  _render() {
+    const tagKeys = this._tagKeys(this.rawRows);
+    if (!this.groupByPoint) {
+      const columns = [
+        { title: "Measurement", field: "measurement" },
+        ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
+        { title: "Field", field: "field" },
+        { title: "Value", field: "value", editor: valueCellEditor },
+        { title: "Time", field: "time", sorter: "string", editable: true, editor: "input" },
+      ];
+
+      const data = this.rawRows.map((row) => {
+        const flat = { ...row, __group_key: pointKey(row.measurement, row.tags, row.time) };
+        for (const key of tagKeys) flat[`tag_${key}`] = row.tags[key] ?? "";
+        return flat;
+      });
+
+      this.groupedRowsByKey = new Map();
+      this.tabulator.setColumns(columns);
+      this.tabulator.setData(data);
+      return;
+    }
+
+    this.groupedRowsByKey = new Map();
+    const fieldNames = [];
+    for (const row of this.rawRows) {
+      const groupKey = pointKey(row.measurement, row.tags, row.time);
+      if (!this.groupedRowsByKey.has(groupKey)) this.groupedRowsByKey.set(groupKey, []);
+      this.groupedRowsByKey.get(groupKey).push(row);
+      if (!fieldNames.includes(row.field)) fieldNames.push(row.field);
     }
 
     const columns = [
       { title: "Measurement", field: "measurement" },
       ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
-      { title: "Field", field: "field" },
-      { title: "Value", field: "value", editor: valueCellEditor },
-      { title: "Time", field: "time", sorter: "string", editable: true, editor: "input" },
+      ...fieldNames.map((field) => ({ title: field, field: `field_${field}` })),
+      { title: "Time", field: "time", sorter: "string" },
     ];
 
-    const data = rows.map((row) => {
-      const flat = { ...row };
-      for (const key of tagKeys) flat[`tag_${key}`] = row.tags[key] ?? "";
-      return flat;
-    });
+    const data = [];
+    for (const [groupKey, rows] of this.groupedRowsByKey.entries()) {
+      const first = rows[0];
+      const grouped = {
+        __group_key: groupKey,
+        measurement: first.measurement,
+        tags: first.tags,
+        time: first.time,
+      };
+      for (const key of tagKeys) grouped[`tag_${key}`] = first.tags[key] ?? "";
+      for (const field of fieldNames) grouped[`field_${field}`] = "";
+      for (const row of rows) grouped[`field_${row.field}`] = row.value;
+      data.push(grouped);
+    }
 
     this.tabulator.setColumns(columns);
     this.tabulator.setData(data);
   },
 
+  _tagKeys(rows) {
+    const keys = [];
+    for (const row of rows) {
+      for (const key of Object.keys(row.tags)) {
+        if (!keys.includes(key)) keys.push(key);
+      }
+    }
+    return keys;
+  },
+
   getSelectedRows() {
-    return this.tabulator.getSelectedData();
+    const selected = this.tabulator.getSelectedData();
+    if (!this.groupByPoint) {
+      return selected;
+    }
+    const expanded = [];
+    for (const row of selected) {
+      const groupedRows = this.groupedRowsByKey.get(row.__group_key) ?? [];
+      expanded.push(...groupedRows);
+    }
+    return expanded;
   },
 
   getAllRows() {
-    return this.tabulator.getData();
+    return [...this.rawRows];
   },
 
   // Groups rows into one entry per InfluxDB point (same measurement+tags+time),

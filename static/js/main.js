@@ -24,6 +24,7 @@ function setStatus(text, kind = "") {
 // response detect it's been superseded - by a later query or by
 // clearSelection() - and skip applying its (now stale) result.
 let queryToken = 0;
+const GROUP_BY_POINT_STORAGE_KEY = "influxweb.groupByPoint";
 
 async function applyQuery() {
   if (!State.bucket) return;
@@ -238,6 +239,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("view-data").addEventListener("change", () => setView("data"));
   document.getElementById("view-stats").addEventListener("change", () => setView("stats"));
+
+  const groupByPointInput = document.getElementById("group-by-point");
+  const groupByPointSaved = localStorage.getItem(GROUP_BY_POINT_STORAGE_KEY) === "1";
+  groupByPointInput.checked = groupByPointSaved;
+  ResultsTable.setGroupByPoint(groupByPointSaved);
+  groupByPointInput.addEventListener("change", () => {
+    const enabled = groupByPointInput.checked;
+    ResultsTable.setGroupByPoint(enabled);
+    localStorage.setItem(GROUP_BY_POINT_STORAGE_KEY, enabled ? "1" : "0");
+    updateToolbarLabels(ResultsTable.getSelectedRows());
+  });
 
   await BucketSelect.init(async () => {
     await FilterBuilder.render(applyQuery);
