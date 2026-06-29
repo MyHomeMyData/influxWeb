@@ -71,6 +71,7 @@ const ResultsTable = {
     this.tabulator = new Tabulator("#results-table", {
       layout: "fitDataStretch",
       height: "65vh",
+      nestedFieldSeparator: false,
       pagination: true,
       paginationSize: 50,
       paginationSizeSelector: [20, 50, 100, true],
@@ -137,11 +138,14 @@ const ResultsTable = {
 
     this.groupedRowsByKey = new Map();
     const fieldNames = [];
+    const seenFields = new Set();
     for (const row of this.rawRows) {
       const groupKey = pointKey(row.measurement, row.tags, row.time);
       if (!this.groupedRowsByKey.has(groupKey)) this.groupedRowsByKey.set(groupKey, []);
       this.groupedRowsByKey.get(groupKey).push(row);
-      if (!fieldNames.includes(row.field)) fieldNames.push(row.field);
+      if (seenFields.has(row.field)) continue;
+      seenFields.add(row.field);
+      fieldNames.push(row.field);
     }
 
     const columns = [
@@ -176,9 +180,12 @@ const ResultsTable = {
 
   _tagKeys(rows) {
     const keys = [];
+    const seen = new Set();
     for (const row of rows) {
       for (const key of Object.keys(row.tags)) {
-        if (!keys.includes(key)) keys.push(key);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        keys.push(key);
       }
     }
     return keys;
