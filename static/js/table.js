@@ -62,6 +62,7 @@ const ResultsTable = {
   rawRows: [],
   groupByPoint: false,
   groupedRowsByKey: new Map(),
+  isBuilt: false,
 
   init(onSelectionChanged, onValueEdited, onTimeEdited) {
     this.onSelectionChanged = onSelectionChanged ?? (() => {});
@@ -77,6 +78,11 @@ const ResultsTable = {
       selectableRowsRangeMode: "click",
       columns: [{ title: "Measurement", field: "measurement" }],
       data: [],
+    });
+
+    this.tabulator.on("tableBuilt", () => {
+      this.isBuilt = true;
+      this._render();
     });
 
     this.tabulator.on("rowSelectionChanged", () => this.onSelectionChanged(this.getSelectedRows()));
@@ -100,6 +106,10 @@ const ResultsTable = {
   },
 
   _render() {
+    if (!this.tabulator || !this.isBuilt) {
+      return;
+    }
+
     const tagKeys = this._tagKeys(this.rawRows);
     if (!this.groupByPoint) {
       const columns = [
@@ -168,6 +178,9 @@ const ResultsTable = {
   },
 
   getSelectedRows() {
+    if (!this.tabulator) {
+      return [];
+    }
     const selected = this.tabulator.getSelectedData();
     if (!this.groupByPoint) {
       return selected;
