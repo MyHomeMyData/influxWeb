@@ -87,7 +87,10 @@ const ResultsTable = {
 
     this.tabulator.on("rowSelectionChanged", () => this.onSelectionChanged(this.getSelectedRows()));
     this.tabulator.on("cellEdited", (cell) => {
-      if (cell.getField() === "time") {
+      if (this.groupByPoint && cell.getField().startsWith("field_")) {
+        const wrappedCell = this._wrapGroupedValueCell(cell);
+        if (wrappedCell) this.onValueEdited(wrappedCell);
+      } else if (cell.getField() === "time") {
         this.onTimeEdited(cell);
       } else if (cell.getField() === "value") {
         this.onValueEdited(cell);
@@ -144,7 +147,11 @@ const ResultsTable = {
     const columns = [
       { title: "Measurement", field: "measurement" },
       ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
-      ...fieldNames.map((field) => ({ title: field, field: `field_${field}` })),
+      ...fieldNames.map((field) => ({
+        title: field,
+        field: `field_${field}`,
+        editor: (cell, onRendered, success, cancel) => this._groupedFieldEditor(cell, onRendered, success, cancel),
+      })),
       { title: "Time", field: "time", sorter: "string" },
     ];
 
@@ -175,6 +182,50 @@ const ResultsTable = {
       }
     }
     return keys;
+  },
+
+  _groupedFieldEditor(cell, onRendered, success, cancel) {
+    const groupedRow = cell.getRow().getData();
+    const field = this._fieldNameFromColumn(cell.getField());
+    const rawRow = this._rawRowForGroupedField(groupedRow.__group_key, field);
+    if (!rawRow) {
+      return false;
+    }
+    return valueCellEditor(cell, onRendered, success, cancel);
+  },
+
+  _fieldNameFromColumn(columnField) {
+    return columnField.startsWith("field_") ? columnField.slice(6) : columnField;
+  },
+
+  _rawRowForGroupedField(groupKey, fieldName) {
+    const rows = this.groupedRowsByKey.get(groupKey) ?? [];
+    return rows.find((row) => row.field === fieldName);
+  },
+
+  _wrapGroupedValueCell(cell) {
+    const groupedRow = cell.getRow().getData();
+    const fieldName = this._fieldNameFromColumn(cell.getField());
+    const rawRow = this._rawRowForGroupedField(groupedRow.__group_key, fieldName);
+    if (!rawRow) {
+      cell.restoreOldValue();
+      return null;
+    }
+
+    return {
+      getRow: () => ({
+        getData: () => ({
+          measurement: rawRow.measurement,
+          tags: rawRow.tags,
+          field: rawRow.field,
+          value_type: rawRow.value_type,
+          time: rawRow.time,
+        }),
+      }),
+      getOldValue: () => cell.getOldValue(),
+      getValue: () => cell.getValue(),
+      restoreOldValue: () => cell.restoreOldValue(),
+    };
   },
 
   getSelectedRows() {
