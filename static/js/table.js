@@ -259,12 +259,16 @@ const ResultsTable = {
 
     const oldTime = cell.getOldValue();
     const newTime = cell.getValue();
+    const firstRow = rawRows[0];
 
     return {
       getRow: () => ({
         getData: () => ({
-          measurement: rawRows[0].measurement,
-          tags: rawRows[0].tags,
+          measurement: firstRow.measurement,
+          tags: firstRow.tags,
+          field: firstRow.field,
+          value: firstRow.value,
+          value_type: firstRow.value_type,
           time: oldTime,
         }),
       }),
