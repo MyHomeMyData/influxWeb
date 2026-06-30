@@ -1,3 +1,24 @@
+// RFC3339 timestamps from this app always carry 6 fractional digits
+// (microseconds) when not exactly on the second, but JS's toISOString-style
+// formatting (and Python's isoformat()) omits the fractional part entirely
+// when it's zero - so "no match" means "000000", not "unknown".
+function subMillisecondDigits(time) {
+  const match = time.match(/\.(\d+)Z$/);
+  const fraction = (match ? match[1] : "").padEnd(6, "0");
+  return fraction.slice(3, 6);
+}
+
+// ioBroker (and most smarthome sources) write millisecond-precision
+// timestamps, so the microsecond digits below that are normally "000" - a
+// hand-edited Time cell going from all-zero to non-zero there is far more
+// likely to be an accidental stray keystroke (e.g. while only meaning to
+// change the hour) than an intentional sub-millisecond retime.
+function hasSuspiciousSubMillisecondChange(oldTime, newTime) {
+  const oldDigits = subMillisecondDigits(oldTime);
+  const newDigits = subMillisecondDigits(newTime);
+  return oldDigits === "000" && newDigits !== "000";
+}
+
 const RetimeConfirmModal = {
   init(onRetimed) {
     this.onRetimed = onRetimed;
@@ -50,7 +71,14 @@ const RetimeConfirmModal = {
       })
       .join("");
 
+    const suspicious = this.points.some((point) => hasSuspiciousSubMillisecondChange(point.old_time, point.new_time));
+    const warning = suspicious
+      ? `<p class="status-line truncated">One or more new times add sub-millisecond precision that
+         wasn't there before - double-check this wasn't an accidental edit of the trailing digits.</p>`
+      : "";
+
     this.body.innerHTML = `
+      ${warning}
       <p><strong>${this.preview.matched_count}</strong> point(s) will be retimed.</p>
       <table class="preview-table">
         <thead><tr><th>Measurement</th><th>Tags</th><th>Fields</th><th>Old time &rarr; New time</th></tr></thead>

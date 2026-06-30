@@ -205,21 +205,28 @@ uvicorn only listens on `127.0.0.1` unless `--host 0.0.0.0` is passed explicitly
 
 ## Changelog
 
+### 0.2.1 (2026-06-30)
+
+(MyHomeMyData) Added a warning in the Retime confirmation dialog when a hand-edited
+timestamp introduces sub-millisecond precision that wasn't there before, since this
+is usually an accidental stray edit of the trailing digits rather than intentional
+(found by Marc Berg while testing 0.2.0).
+
 ### 0.2.0 (2026-06-30)
 
-Added a "Group fields by point" Data View toggle (contributed by Marc Berg),
-pivoting one row per field into one row per logical reading - mainly useful for
-ioBroker buckets using field-based storage.
+(Marc-Berg) Added a "Group fields by point" Data View toggle, pivoting one row
+per field into one row per logical reading - mainly useful for ioBroker buckets
+using field-based storage.
 
 ### 0.1.1 (2026-06-28)
 
-Fixed an unfiltered selection querying the entire bucket, and incorrect row order for
-ioBroker's field-based storage mode. Documented current support boundaries between
-ioBroker's tag-based and field-based storage modes.
+(MyHomeMyData) Fixed an unfiltered selection querying the entire bucket, and
+incorrect row order for ioBroker's field-based storage mode. Documented current
+support boundaries between ioBroker's tag-based and field-based storage modes.
 
 ### 0.1.0 (2026-06-24)
 
-Initial beta release.
+(MyHomeMyData) Initial beta release.
 
 ## License
 
