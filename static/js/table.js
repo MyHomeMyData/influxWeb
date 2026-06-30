@@ -59,6 +59,11 @@ function pointKey(measurement, tags, time) {
 }
 
 const ResultsTable = {
+  rawRows: [],
+  groupByPoint: false,
+  groupedRowsByKey: new Map(),
+  isBuilt: false,
+
   init(onSelectionChanged, onValueEdited, onTimeEdited) {
     this.onSelectionChanged = onSelectionChanged ?? (() => {});
     this.onValueEdited = onValueEdited ?? (() => {});
@@ -66,6 +71,7 @@ const ResultsTable = {
     this.tabulator = new Tabulator("#results-table", {
       layout: "fitDataStretch",
       height: "65vh",
+      nestedFieldSeparator: false,
       pagination: true,
       paginationSize: 50,
       paginationSizeSelector: [20, 50, 100, true],
@@ -75,9 +81,20 @@ const ResultsTable = {
       data: [],
     });
 
-    this.tabulator.on("rowSelectionChanged", (data) => this.onSelectionChanged(data));
+    this.tabulator.on("tableBuilt", () => {
+      this.isBuilt = true;
+      this._render();
+    });
+
+    this.tabulator.on("rowSelectionChanged", () => this.onSelectionChanged(this.getSelectedRows()));
     this.tabulator.on("cellEdited", (cell) => {
-      if (cell.getField() === "time") {
+      if (this.groupByPoint && cell.getField().startsWith("field_")) {
+        const wrappedCell = this._wrapGroupedValueCell(cell);
+        if (wrappedCell) this.onValueEdited(wrappedCell);
+      } else if (this.groupByPoint && cell.getField() === "time") {
+        const wrappedCell = this._wrapGroupedTimeCell(cell);
+        if (wrappedCell) this.onTimeEdited(wrappedCell);
+      } else if (cell.getField() === "time") {
         this.onTimeEdited(cell);
       } else if (cell.getField() === "value") {
         this.onValueEdited(cell);
@@ -85,38 +102,225 @@ const ResultsTable = {
     });
   },
 
+  setGroupByPoint(enabled) {
+    this.groupByPoint = enabled;
+    this._render();
+  },
+
   setRows(rows) {
-    const tagKeys = [];
-    for (const row of rows) {
-      for (const key of Object.keys(row.tags)) {
-        if (!tagKeys.includes(key)) tagKeys.push(key);
-      }
+    this.rawRows = [...rows];
+    this._render();
+  },
+
+  _render() {
+    if (!this.tabulator || !this.isBuilt) {
+      return;
+    }
+
+    const tagKeys = this._tagKeys(this.rawRows);
+    if (!this.groupByPoint) {
+      const columns = [
+        { title: "Measurement", field: "measurement" },
+        ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
+        { title: "Field", field: "field" },
+        { title: "Value", field: "value", editor: valueCellEditor },
+        { title: "Time", field: "time", sorter: "string", editable: true, editor: "input" },
+      ];
+
+      const data = this.rawRows.map((row) => {
+        const flat = { ...row, __group_key: pointKey(row.measurement, row.tags, row.time) };
+        for (const key of tagKeys) flat[`tag_${key}`] = row.tags[key] ?? "";
+        return flat;
+      });
+
+      this.groupedRowsByKey = new Map();
+      this.tabulator.setColumns(columns);
+      this.tabulator.setData(data);
+      return;
+    }
+
+    this.groupedRowsByKey = new Map();
+    const fieldNames = [];
+    const seenFields = new Set();
+    for (const row of this.rawRows) {
+      const groupKey = pointKey(row.measurement, row.tags, row.time);
+      if (!this.groupedRowsByKey.has(groupKey)) this.groupedRowsByKey.set(groupKey, []);
+      this.groupedRowsByKey.get(groupKey).push(row);
+      if (seenFields.has(row.field)) continue;
+      seenFields.add(row.field);
+      fieldNames.push(row.field);
     }
 
     const columns = [
       { title: "Measurement", field: "measurement" },
       ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
-      { title: "Field", field: "field" },
-      { title: "Value", field: "value", editor: valueCellEditor },
-      { title: "Time", field: "time", sorter: "string", editable: true, editor: "input" },
+      ...fieldNames.map((field) => ({
+        title: field,
+        field: `field_${field}`,
+        editor: (cell, onRendered, success, cancel) => this._groupedFieldEditor(cell, onRendered, success, cancel),
+      })),
+      {
+        title: "Time",
+        field: "time",
+        sorter: "string",
+        editable: true,
+        editor: (cell, onRendered, success, cancel) => this._groupedTimeEditor(cell, onRendered, success, cancel),
+      },
     ];
 
-    const data = rows.map((row) => {
-      const flat = { ...row };
-      for (const key of tagKeys) flat[`tag_${key}`] = row.tags[key] ?? "";
-      return flat;
-    });
+    const data = [];
+    for (const [groupKey, rows] of this.groupedRowsByKey.entries()) {
+      const first = rows[0];
+      const grouped = {
+        __group_key: groupKey,
+        measurement: first.measurement,
+        tags: first.tags,
+        time: first.time,
+      };
+      for (const key of tagKeys) grouped[`tag_${key}`] = first.tags[key] ?? "";
+      for (const field of fieldNames) grouped[`field_${field}`] = "";
+      for (const row of rows) grouped[`field_${row.field}`] = row.value;
+      data.push(grouped);
+    }
 
     this.tabulator.setColumns(columns);
     this.tabulator.setData(data);
   },
 
+  _tagKeys(rows) {
+    const keys = [];
+    const seen = new Set();
+    for (const row of rows) {
+      for (const key of Object.keys(row.tags)) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+        keys.push(key);
+      }
+    }
+    return keys;
+  },
+
+  _groupedFieldEditor(cell, onRendered, success, cancel) {
+    const groupedRow = cell.getRow().getData();
+    const field = this._fieldNameFromColumn(cell.getField());
+    const rawRow = this._rawRowForGroupedField(groupedRow.__group_key, field);
+    if (!rawRow) {
+      return false;
+    }
+    return valueCellEditor(cell, onRendered, success, cancel);
+  },
+
+  _fieldNameFromColumn(columnField) {
+    return columnField.startsWith("field_") ? columnField.slice(6) : columnField;
+  },
+
+  _rawRowForGroupedField(groupKey, fieldName) {
+    const rows = this.groupedRowsByKey.get(groupKey) ?? [];
+    return rows.find((row) => row.field === fieldName);
+  },
+
+  _groupedTimeEditor(cell, onRendered, success, cancel) {
+    const groupedRow = cell.getRow().getData();
+    const rawRows = this.groupedRowsByKey.get(groupedRow.__group_key) ?? [];
+    if (rawRows.length === 0) {
+      return false;
+    }
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = cell.getValue();
+    input.classList.add("cell-editor");
+
+    onRendered(() => {
+      input.focus();
+      input.select();
+    });
+
+    function commit() {
+      success(input.value);
+    }
+
+    input.addEventListener("change", commit);
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") commit();
+      if (event.key === "Escape") cancel();
+    });
+
+    return input;
+  },
+
+  _wrapGroupedTimeCell(cell) {
+    const groupedRow = cell.getRow().getData();
+    const rawRows = this.groupedRowsByKey.get(groupedRow.__group_key) ?? [];
+    if (rawRows.length === 0) {
+      cell.restoreOldValue();
+      return null;
+    }
+
+    const oldTime = cell.getOldValue();
+    const newTime = cell.getValue();
+    const firstRow = rawRows[0];
+
+    return {
+      getRow: () => ({
+        getData: () => ({
+          measurement: firstRow.measurement,
+          tags: firstRow.tags,
+          field: firstRow.field,
+          value: firstRow.value,
+          value_type: firstRow.value_type,
+          time: oldTime,
+        }),
+      }),
+      getOldValue: () => oldTime,
+      getValue: () => newTime,
+      restoreOldValue: () => cell.restoreOldValue(),
+    };
+  },
+
+  _wrapGroupedValueCell(cell) {
+    const groupedRow = cell.getRow().getData();
+    const fieldName = this._fieldNameFromColumn(cell.getField());
+    const rawRow = this._rawRowForGroupedField(groupedRow.__group_key, fieldName);
+    if (!rawRow) {
+      cell.restoreOldValue();
+      return null;
+    }
+
+    return {
+      getRow: () => ({
+        getData: () => ({
+          measurement: rawRow.measurement,
+          tags: rawRow.tags,
+          field: rawRow.field,
+          value_type: rawRow.value_type,
+          time: rawRow.time,
+        }),
+      }),
+      getOldValue: () => cell.getOldValue(),
+      getValue: () => cell.getValue(),
+      restoreOldValue: () => cell.restoreOldValue(),
+    };
+  },
+
   getSelectedRows() {
-    return this.tabulator.getSelectedData();
+    if (!this.tabulator) {
+      return [];
+    }
+    const selected = this.tabulator.getSelectedData();
+    if (!this.groupByPoint) {
+      return selected;
+    }
+    const expanded = [];
+    for (const row of selected) {
+      const groupedRows = this.groupedRowsByKey.get(row.__group_key) ?? [];
+      expanded.push(...groupedRows);
+    }
+    return expanded;
   },
 
   getAllRows() {
-    return this.tabulator.getData();
+    return [...this.rawRows];
   },
 
   // Groups rows into one entry per InfluxDB point (same measurement+tags+time),
