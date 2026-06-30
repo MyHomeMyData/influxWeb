@@ -91,6 +91,9 @@ const ResultsTable = {
       if (this.groupByPoint && cell.getField().startsWith("field_")) {
         const wrappedCell = this._wrapGroupedValueCell(cell);
         if (wrappedCell) this.onValueEdited(wrappedCell);
+      } else if (this.groupByPoint && cell.getField() === "time") {
+        const wrappedCell = this._wrapGroupedTimeCell(cell);
+        if (wrappedCell) this.onTimeEdited(wrappedCell);
       } else if (cell.getField() === "time") {
         this.onTimeEdited(cell);
       } else if (cell.getField() === "value") {
@@ -156,7 +159,13 @@ const ResultsTable = {
         field: `field_${field}`,
         editor: (cell, onRendered, success, cancel) => this._groupedFieldEditor(cell, onRendered, success, cancel),
       })),
-      { title: "Time", field: "time", sorter: "string" },
+      {
+        title: "Time",
+        field: "time",
+        sorter: "string",
+        editable: true,
+        editor: (cell, onRendered, success, cancel) => this._groupedTimeEditor(cell, onRendered, success, cancel),
+      },
     ];
 
     const data = [];
@@ -208,6 +217,61 @@ const ResultsTable = {
   _rawRowForGroupedField(groupKey, fieldName) {
     const rows = this.groupedRowsByKey.get(groupKey) ?? [];
     return rows.find((row) => row.field === fieldName);
+  },
+
+  _groupedTimeEditor(cell, onRendered, success, cancel) {
+    const groupedRow = cell.getRow().getData();
+    const rawRows = this.groupedRowsByKey.get(groupedRow.__group_key) ?? [];
+    if (rawRows.length === 0) {
+      return false;
+    }
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = cell.getValue();
+    input.classList.add("cell-editor");
+
+    onRendered(() => {
+      input.focus();
+      input.select();
+    });
+
+    function commit() {
+      success(input.value);
+    }
+
+    input.addEventListener("change", commit);
+    input.addEventListener("blur", commit);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") commit();
+      if (event.key === "Escape") cancel();
+    });
+
+    return input;
+  },
+
+  _wrapGroupedTimeCell(cell) {
+    const groupedRow = cell.getRow().getData();
+    const rawRows = this.groupedRowsByKey.get(groupedRow.__group_key) ?? [];
+    if (rawRows.length === 0) {
+      cell.restoreOldValue();
+      return null;
+    }
+
+    const oldTime = cell.getOldValue();
+    const newTime = cell.getValue();
+
+    return {
+      getRow: () => ({
+        getData: () => ({
+          measurement: rawRows[0].measurement,
+          tags: rawRows[0].tags,
+          time: oldTime,
+        }),
+      }),
+      getOldValue: () => oldTime,
+      getValue: () => newTime,
+      restoreOldValue: () => cell.restoreOldValue(),
+    };
   },
 
   _wrapGroupedValueCell(cell) {
