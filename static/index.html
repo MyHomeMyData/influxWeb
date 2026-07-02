@@ -55,7 +55,7 @@
       <div class="view-toggle">
         <label><input type="radio" name="results-view" id="view-data" checked /> Data View</label>
         <label><input type="radio" name="results-view" id="view-stats" /> Statistical View</label>
-        <label><input type="checkbox" id="group-by-point" /> Group fields by point (one row)</label>
+        <span id="group-by-point-row"><label><input type="checkbox" id="group-by-point" /> Group fields by point (one row)</label></span>
       </div>
       <div class="toolbar">
         <button id="export-ods">Export ODS</button>
@@ -101,12 +101,19 @@
         Measurement
         <input id="add-point-measurement" type="text" />
       </label>
-      <div id="add-point-tag-rows"></div>
-      <button id="add-point-add-tag" type="button">+ Add tag</button>
-      <label>
-        Field
-        <input id="add-point-field" type="text" />
-      </label>
+      <div id="add-point-default-form">
+        <div id="add-point-tag-rows"></div>
+        <button id="add-point-add-tag" type="button">+ Add tag</button>
+        <label>
+          Field
+          <input id="add-point-field" type="text" />
+        </label>
+      </div>
+      <div id="add-point-iobroker-form" style="display:none">
+        <label>ack <select id="add-point-ack"><option value="true">true</option><option value="false">false</option></select></label>
+        <label>from <input id="add-point-from" type="text" value="system.adapter.admin.0" /></label>
+        <label>q <input id="add-point-q" type="number" value="0" /></label>
+      </div>
       <label>
         Value
         <input id="add-point-value" type="text" />

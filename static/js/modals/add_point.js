@@ -13,6 +13,12 @@ const AddPointModal = {
     this.confirmButton = document.getElementById("add-point-confirm");
     this.cancelButton = document.getElementById("add-point-cancel");
 
+    this.defaultForm = document.getElementById("add-point-default-form");
+    this.ioBrokerForm = document.getElementById("add-point-iobroker-form");
+    this.ackSelect = document.getElementById("add-point-ack");
+    this.fromInput = document.getElementById("add-point-from");
+    this.qInput = document.getElementById("add-point-q");
+
     this.addTagButton.addEventListener("click", () => this._addTagRow());
     this.confirmButton.addEventListener("click", () => this._confirm());
     this.cancelButton.addEventListener("click", () => this.close());
@@ -36,25 +42,48 @@ const AddPointModal = {
     this.overlay.classList.remove("open");
   },
 
+  _isIoBrokerFieldBased(measurement) {
+    return appMode === "iobroker" && fieldBasedMeasurements.has(measurement);
+  },
+
+  _showForm(isFieldBased) {
+    this.defaultForm.style.display = isFieldBased ? "none" : "";
+    this.ioBrokerForm.style.display = isFieldBased ? "" : "none";
+    if (isFieldBased) {
+      this.fieldInput.value = "value";
+    }
+  },
+
   _pickSourceRow() {
     const selected = ResultsTable.getSelectedRows();
     if (selected.length === 0) return null;
     if (selected.length === 1) return selected[0];
-    // With several rows selected there's no single "right" one to copy from -
-    // the most recent point is the most likely thing the user just looked at.
     return selected.reduce((latest, row) => (new Date(row.time) > new Date(latest.time) ? row : latest));
   },
 
   _prefillFromRow(row) {
     this.measurementInput.value = row.measurement;
-    this.tagRows.innerHTML = "";
-    const tagEntries = Object.entries(row.tags);
-    if (tagEntries.length === 0) {
-      this._addTagRow();
+    const isFieldBased = this._isIoBrokerFieldBased(row.measurement);
+    this._showForm(isFieldBased);
+
+    if (isFieldBased) {
+      // Synthetic tags on the row hold ack/from/q as display strings.
+      // extra_fields carries the typed originals — save them so _writeFieldBased
+      // can use the correct InfluxDB types rather than hardcoded guesses.
+      this._metaFieldTypes = row.extra_fields ?? null;
+      this.ackSelect.value = row.tags.ack ?? "true";
+      this.fromInput.value = row.tags.from ?? "system.adapter.admin.0";
+      this.qInput.value = row.tags.q ?? "0";
     } else {
-      for (const [key, value] of tagEntries) this._addTagRow(key, value);
+      this.tagRows.innerHTML = "";
+      const tagEntries = Object.entries(row.tags);
+      if (tagEntries.length === 0) {
+        this._addTagRow();
+      } else {
+        for (const [key, value] of tagEntries) this._addTagRow(key, value);
+      }
+      this.fieldInput.value = row.field;
     }
-    this.fieldInput.value = row.field;
     this.valueInput.value = row.value;
     this.typeSelect.value = row.value_type;
     this.timeInput.value = row.time;
@@ -62,14 +91,24 @@ const AddPointModal = {
 
   _prefillDefaults() {
     this.measurementInput.value = "";
-    this.tagRows.innerHTML = "";
-    // ioBroker's influxdb history adapter tags every point with ack/from/q -
-    // prefilling them with typical values saves retyping the same three tags
-    // for every manually-added point.
-    this._addTagRow("ack", "true");
-    this._addTagRow("from", "system.admin.0");
-    this._addTagRow("q", "0");
-    this.fieldInput.value = "value";
+    this._metaFieldTypes = null;
+    const isFieldBased = appMode === "iobroker";
+    this._showForm(isFieldBased);
+
+    if (isFieldBased) {
+      this.ackSelect.value = "true";
+      this.fromInput.value = "system.adapter.admin.0";
+      this.qInput.value = "0";
+    } else {
+      this.tagRows.innerHTML = "";
+      // ioBroker's influxdb history adapter tags every point with ack/from/q -
+      // prefilling them with typical values saves retyping the same three tags
+      // for every manually-added point.
+      this._addTagRow("ack", "true");
+      this._addTagRow("from", "system.admin.0");
+      this._addTagRow("q", "0");
+      this.fieldInput.value = "value";
+    }
     this.valueInput.value = "";
     this.typeSelect.value = "float";
     this.timeInput.value = new Date().toISOString();
@@ -116,11 +155,10 @@ const AddPointModal = {
   async _confirm() {
     this.errorBox.textContent = "";
     const measurement = this.measurementInput.value.trim();
-    const field = this.fieldInput.value.trim();
     const time = this.timeInput.value.trim();
 
-    if (!measurement || !field || !time) {
-      this.errorBox.textContent = "Measurement, field, and time are required.";
+    if (!measurement || !time) {
+      this.errorBox.textContent = "Measurement and time are required.";
       return;
     }
 
@@ -134,20 +172,65 @@ const AddPointModal = {
 
     this.confirmButton.disabled = true;
     try {
-      await Api.writePoint({
-        bucket: State.bucket,
-        measurement,
-        tags: this._collectTags(),
-        field,
-        value,
-        value_type: this.typeSelect.value,
-        time,
-      });
+      const isFieldBased = this._isIoBrokerFieldBased(measurement);
+      if (isFieldBased) {
+        await this._writeFieldBased(measurement, value, time);
+      } else {
+        const field = this.fieldInput.value.trim();
+        if (!field) {
+          this.errorBox.textContent = "Field is required.";
+          this.confirmButton.disabled = false;
+          return;
+        }
+        await Api.writePoint({
+          bucket: State.bucket,
+          measurement,
+          tags: this._collectTags(),
+          field,
+          value,
+          value_type: this.typeSelect.value,
+          time,
+        });
+      }
       this.close();
       this.onAdded();
     } catch (error) {
       this.errorBox.textContent = `Add failed: ${error.message}`;
       this.confirmButton.disabled = false;
+    }
+  },
+
+  async _writeFieldBased(measurement, value, time) {
+    // Field-based storage: ack/from/q/value are all InfluxDB fields (no tags).
+    // Writing them as 4 separate single-field calls is safe: InfluxDB merges
+    // writes to the same series+timestamp, so all 4 fields end up in one point.
+    //
+    // Use the exact types from extra_fields (read from the source row) so we
+    // don't conflict with an existing InfluxDB field type (e.g. q stored as
+    // float in some installations instead of int).
+    const ackType = this._metaFieldTypes?.ack?.value_type ?? "bool";
+    const fromType = this._metaFieldTypes?.from?.value_type ?? "string";
+    const qType = this._metaFieldTypes?.q?.value_type ?? "float";
+
+    const qRaw = this.qInput.value;
+    const qValue = qType === "int" ? parseInt(qRaw, 10) : parseFloat(qRaw);
+
+    const writes = [
+      { field: "value", value, value_type: this.typeSelect.value },
+      { field: "ack", value: this.ackSelect.value === "true", value_type: ackType },
+      { field: "from", value: this.fromInput.value.trim(), value_type: fromType },
+      { field: "q", value: qValue, value_type: qType },
+    ];
+    for (const w of writes) {
+      await Api.writePoint({
+        bucket: State.bucket,
+        measurement,
+        tags: {},
+        field: w.field,
+        value: w.value,
+        value_type: w.value_type,
+        time,
+      });
     }
   },
 };

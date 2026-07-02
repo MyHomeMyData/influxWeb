@@ -15,13 +15,22 @@ This project was developed against an ioBroker InfluxDB-history setup specifical
 choices) — it should work against any InfluxDB v2 instance, but has not yet been
 tested outside that one environment.
 
-Currently, ioBroker buckets using tag-based storage ("use tags to store metadata
-information, instead of fields" enabled in the InfluxDB adapter's Expert config tab)
-are best supported. With that option disabled, browsing/querying, Export, Import,
-Edit, Retime, and Delete all still work correctly — but "+ Add point" should not be
-used, since it assumes the tag-based convention and has no way to create a complete
-multi-field point in one step. The Data View shows one row per field by default in
-that mode; enable "Group fields by point" to see one row per logical reading instead.
+ioBroker's InfluxDB adapter can store metadata in two different ways, depending on
+the "store metadata (ack, from, q) as tags" setting in its Expert config:
+
+- **Tag-based** (setting enabled): `ack`, `from`, `q` are InfluxDB tags, `value` is the field.
+- **Field-based** (setting disabled): `ack`, `from`, `q`, and `value` are all InfluxDB fields, no tags.
+
+Both variants are fully supported when `INFLUXWEB_MODE=iobroker` is set in `.env`
+(pre-configured in `.env.example`). influxWeb auto-detects the storage variant per measurement, groups field-based
+data into one row per logical point, and handles Add point, Edit, Delete, Retime, and
+ODS Export/Import correctly for both variants. The "Group fields by point" toggle is
+hidden in iobroker mode (grouping is always on).
+
+Set `INFLUXWEB_MODE=default` in `.env` to disable ioBroker-specific behaviour. In
+that mode, all operations work for tag-based data. Field-based data can be browsed,
+queried, exported, edited, retimed, and deleted correctly — but "Add point" will not
+create a complete ioBroker point and should be avoided.
 
 ## Features
 
@@ -40,7 +49,8 @@ that mode; enable "Group fields by point" to see one row per logical reading ins
 - A "Group fields by point" toggle: pivots the Data View from one row per
   field to one row per logical reading (fields as columns) - mainly useful
   for ioBroker buckets using field-based storage, where each point otherwise
-  shows as several separate rows. Off by default, remembered across visits
+  shows as several separate rows. Off by default, remembered across visits.
+  Hidden when `INFLUXWEB_MODE=iobroker` is active (grouping is always on there)
 - Export to ODS (whole query result, or just the selected rows), with proper
   cell types (numbers, booleans, dates) and an instructions block describing
   the round-trip contract for a later import
@@ -110,6 +120,8 @@ finishes:
    ```bash
    sudo -u influxweb nano /opt/influxweb/.env   # fill in INFLUX_URL / INFLUX_TOKEN / INFLUX_ORG
    ```
+   The `.env.example` pre-sets `INFLUXWEB_MODE=iobroker`. Set it to `default` to
+   disable ioBroker-specific behaviour (see [above](#influxweb) for details).
 2. Start the service:
    ```bash
    sudo systemctl enable --now influxweb
@@ -204,6 +216,34 @@ Open `http://localhost:8085/` (or `http://<host>:8085/` from another machine on 
 uvicorn only listens on `127.0.0.1` unless `--host 0.0.0.0` is passed explicitly).
 
 ## Changelog
+
+### 0.3.0 (2026-07-01)
+
+(MyHomeMyData) Added `INFLUXWEB_MODE=iobroker` for transparent, full-featured
+support of ioBroker's InfluxDB adapter — covering both its tag-based and field-based
+storage variants simultaneously, auto-detected per measurement at query time.
+
+In iobroker mode, field-based data is grouped into one row per logical point on the
+backend (measurement + timestamp → one display row with ack/from/q shown as
+synthetic tag columns). All operations work correctly for both storage variants:
+
+- **Add point**: dedicated form with ack/from/q fields; writes four single-field
+  calls that InfluxDB merges into one complete point
+- **Inline edit**: writes to the correct tagless series (not a new tagged one)
+- **Delete / Retime**: use empty tags for field-based points, correctly identifying
+  the series by measurement and timestamp alone
+- **ODS Export**: one row per point; ack/from/q stored in `extra.*` columns
+  (e.g. `extra.ack`, `extra.ack_type`) alongside the main value — round-trip safe
+- **ODS Import**: detects `extra.*` columns and writes each as a separate field to
+  the same series+timestamp; InfluxDB merges them into one complete point.
+  Also fixed LibreOffice re-saving boolean cells as numeric (1/0) breaking import
+
+The "Group fields by point" toggle is hidden in iobroker mode (grouping is always
+active). In default mode, all existing behavior is unchanged.
+
+Also fixed in this release: number-input stepper buttons (▲▼) in the inline cell
+editor triggered the confirm modal immediately on click instead of waiting for
+Enter or blur.
 
 ### 0.2.2 (2026-06-30)
 
