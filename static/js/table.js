@@ -1,6 +1,66 @@
-function valueCellEditor(cell, onRendered, success, cancel) {
-  const value = cell.getValue();
-  const type = typeof value;
+const IOBROKER_EXTRA_FIELD_DEFAULTS = {
+  ack:  { value: false, value_type: "bool" },
+  from: { value: "",    value_type: "string" },
+  q:    { value: 0,     value_type: "float" },
+};
+
+const IOBROKER_Q_VALUES = [
+  { value: 0, label: "0 — Good" },
+  { value: 1, label: "1 — General error" },
+  { value: 2, label: "2 — No connection" },
+  { value: 16, label: "16 — Substitute value" },
+  { value: 32, label: "32 — Device error" },
+  { value: 64, label: "64 — Device-specific error" },
+  { value: 68, label: "68 — Device-specific + device error" },
+  { value: 128, label: "128 — Not connected" },
+];
+
+function qCellEditor(cell, onRendered, success, cancel) {
+  const raw = cell.getValue();
+  const current = (raw === "" || raw === null || raw === undefined) ? 0 : raw;
+  const input = document.createElement("select");
+  const knownValues = new Set(IOBROKER_Q_VALUES.map((e) => e.value));
+  for (const { value, label } of IOBROKER_Q_VALUES) {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = label;
+    input.appendChild(option);
+  }
+  if (!knownValues.has(current)) {
+    const option = document.createElement("option");
+    option.value = String(current);
+    option.textContent = `${current} — (unknown)`;
+    input.appendChild(option);
+  }
+  input.value = String(current);
+  input.classList.add("cell-editor");
+
+  onRendered(() => input.focus());
+
+  function commit() {
+    success(parseInt(input.value, 10));
+  }
+
+  input.addEventListener("change", commit);
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") commit();
+    if (event.key === "Escape") cancel();
+  });
+
+  return input;
+}
+
+function valueCellEditor(cell, onRendered, success, cancel, valueTypeHint = null) {
+  let value = cell.getValue();
+  let type = typeof value;
+  if (valueTypeHint === "bool") {
+    type = "boolean";
+    if (typeof value !== "boolean") value = false;
+  } else if (valueTypeHint === "float" || valueTypeHint === "int") {
+    type = "number";
+    if (typeof value !== "number") value = 0;
+  }
 
   let input;
   if (type === "boolean") {
@@ -153,14 +213,33 @@ const ResultsTable = {
       fieldNames.push(row.field);
     }
 
+    // In iobroker field-based mode all rows have extra_fields (typed ack/from/q).
+    // Show them as editable field columns instead of read-only synthetic tag columns.
+    const extraFieldNames = [];
+    const seenExtraFields = new Set();
+    const isAllFieldBased = this.rawRows.length > 0 &&
+      this.rawRows.every((row) => row.storage_variant === "field-based");
+    if (isAllFieldBased) {
+      for (const row of this.rawRows) {
+        if (!row.extra_fields) continue;
+        for (const name of Object.keys(row.extra_fields)) {
+          if (seenExtraFields.has(name)) continue;
+          seenExtraFields.add(name);
+          extraFieldNames.push(name);
+        }
+      }
+    }
+    const tagKeysToShow = isAllFieldBased
+      ? tagKeys.filter((key) => !seenExtraFields.has(key))
+      : tagKeys;
+
+    const fieldEditor = (cell, onRendered, success, cancel) =>
+      this._groupedFieldEditor(cell, onRendered, success, cancel);
     const columns = [
       { title: "Measurement", field: "measurement" },
-      ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
-      ...fieldNames.map((field) => ({
-        title: field,
-        field: `field_${field}`,
-        editor: (cell, onRendered, success, cancel) => this._groupedFieldEditor(cell, onRendered, success, cancel),
-      })),
+      ...tagKeysToShow.map((key) => ({ title: key, field: `tag_${key}` })),
+      ...extraFieldNames.map((name) => ({ title: name, field: `field_${name}`, editor: fieldEditor })),
+      ...fieldNames.map((field) => ({ title: field, field: `field_${field}`, editor: fieldEditor })),
       {
         title: "Time",
         field: "time",
@@ -179,9 +258,13 @@ const ResultsTable = {
         tags: first.tags,
         time: first.time,
       };
-      for (const key of tagKeys) grouped[`tag_${key}`] = first.tags[key] ?? "";
+      for (const key of tagKeysToShow) grouped[`tag_${key}`] = first.tags[key] ?? "";
       for (const field of fieldNames) grouped[`field_${field}`] = "";
       for (const row of rows) grouped[`field_${row.field}`] = row.value;
+      for (const name of extraFieldNames) {
+        const entry = first.extra_fields?.[name];
+        grouped[`field_${name}`] = entry !== undefined ? entry.value : "";
+      }
       data.push(grouped);
     }
 
@@ -209,7 +292,10 @@ const ResultsTable = {
     if (!rawRow) {
       return false;
     }
-    return valueCellEditor(cell, onRendered, success, cancel);
+    if (rawRow.field === "q" && rawRow.storage_variant === "field-based") {
+      return qCellEditor(cell, onRendered, success, cancel);
+    }
+    return valueCellEditor(cell, onRendered, success, cancel, rawRow.value_type);
   },
 
   _fieldNameFromColumn(columnField) {
@@ -218,7 +304,37 @@ const ResultsTable = {
 
   _rawRowForGroupedField(groupKey, fieldName) {
     const rows = this.groupedRowsByKey.get(groupKey) ?? [];
-    return rows.find((row) => row.field === fieldName);
+    const direct = rows.find((row) => row.field === fieldName);
+    if (direct) return direct;
+    // In iobroker field-based mode ack/from/q live in extra_fields of the value row.
+    const host = rows.find((row) => row.extra_fields && fieldName in row.extra_fields);
+    if (host) {
+      const entry = host.extra_fields[fieldName];
+      return {
+        measurement: host.measurement,
+        tags: {},
+        field: fieldName,
+        value: entry.value,
+        value_type: entry.value_type,
+        time: host.time,
+        storage_variant: "field-based",
+      };
+    }
+    // Field absent from this point (e.g. partially written) — use typed defaults
+    const fieldBasedHost = rows.find((row) => row.storage_variant === "field-based");
+    const defaults = IOBROKER_EXTRA_FIELD_DEFAULTS[fieldName];
+    if (fieldBasedHost && defaults) {
+      return {
+        measurement: fieldBasedHost.measurement,
+        tags: {},
+        field: fieldName,
+        value: defaults.value,
+        value_type: defaults.value_type,
+        time: fieldBasedHost.time,
+        storage_variant: "field-based",
+      };
+    }
+    return undefined;
   },
 
   _groupedTimeEditor(cell, onRendered, success, cancel) {
