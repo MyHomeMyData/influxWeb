@@ -140,10 +140,19 @@ def _milliseconds_of(time_str: str) -> int:
 
 def build_ods(bucket: str, rows: list[PointRow]) -> bytes:
     tag_keys: list[str] = []
+    extra_field_names: list[str] = []
     for row in rows:
-        for key in row.tags:
-            if key not in tag_keys:
-                tag_keys.append(key)
+        # Field-based PointRows carry synthetic tags (ack/from/q as display-only strings)
+        # rather than real InfluxDB tags - skip them here so they don't pollute the
+        # tag.* columns; their typed values come from extra_fields below.
+        if row.storage_variant != "field-based":
+            for key in row.tags:
+                if key not in tag_keys:
+                    tag_keys.append(key)
+        if row.extra_fields:
+            for name in row.extra_fields:
+                if name not in extra_field_names:
+                    extra_field_names.append(name)
 
     doc = OpenDocumentSpreadsheet()
     styles = _setup_styles(doc)
@@ -161,6 +170,10 @@ def build_ods(bucket: str, rows: list[PointRow]) -> bytes:
         "field",
         "value",
         "value_type",
+        # extra.NAME / extra.NAME_type: one column pair per extra field (e.g. ack/from/q
+        # in ioBroker field-based mode). Keeps 1 ODS row per logical point while
+        # carrying all field values for a correct round-trip import.
+        *[col for name in extra_field_names for col in (f"extra.{name}", f"extra.{name}_type")],
         "time",
         "time_ms",
     ]
@@ -174,10 +187,20 @@ def build_ods(bucket: str, rows: list[PointRow]) -> bytes:
         table_row.addElement(_string_cell(bucket))
         table_row.addElement(_string_cell(row.measurement))
         for key in tag_keys:
-            table_row.addElement(_string_cell(row.tags.get(key, "")))
+            # Field-based rows have no real InfluxDB tags - leave tag cells blank
+            tag_value = "" if row.storage_variant == "field-based" else row.tags.get(key, "")
+            table_row.addElement(_string_cell(tag_value))
         table_row.addElement(_string_cell(row.field))
         table_row.addElement(_value_cell(row.value, row.value_type, styles))
         table_row.addElement(_string_cell(row.value_type))
+        for name in extra_field_names:
+            if row.extra_fields and name in row.extra_fields:
+                entry = row.extra_fields[name]
+                table_row.addElement(_value_cell(entry.value, entry.value_type, styles))
+                table_row.addElement(_string_cell(entry.value_type))
+            else:
+                table_row.addElement(_string_cell(""))
+                table_row.addElement(_string_cell(""))
         table_row.addElement(_time_cell(row.time, styles))
         table_row.addElement(_value_cell(_milliseconds_of(row.time), "int", styles))
         sheet.addElement(table_row)
@@ -210,6 +233,11 @@ def _parse_value_cell(cell: TableCell, value_type: FieldValueType) -> FieldValue
         boolean_value = cell.getAttribute("booleanvalue")
         if boolean_value is not None:
             return boolean_value == "true"
+        # LibreOffice re-saves boolean cells as numeric (office:value="1"/"0")
+        # instead of keeping office:boolean-value="true"/"false".
+        raw_value = cell.getAttribute("value")
+        if raw_value is not None:
+            return float(raw_value) != 0
         text = _cell_text(cell).strip().lower()
         if text in ("true", "false"):
             return text == "true"
@@ -274,6 +302,12 @@ def parse_ods(content: bytes) -> tuple[list[tuple[int, PointWriteRequest]], list
 
     column_index = {name: position for position, name in enumerate(header)}
     tag_keys = [name.removeprefix("tag.") for name in header if name.startswith("tag.")]
+    # extra.NAME / extra.NAME_type column pairs added by build_ods for field-based rows
+    extra_field_names = [
+        col.removeprefix("extra.")
+        for col in header
+        if col.startswith("extra.") and not col.endswith("_type") and f"{col}_type" in column_index
+    ]
 
     valid_rows: list[tuple[int, PointWriteRequest]] = []
     errors: list[ImportRowError] = []
@@ -310,5 +344,30 @@ def parse_ods(content: bytes) -> tuple[list[tuple[int, PointWriteRequest]], list
             valid_rows.append((row_number, request))
         except Exception as exc:
             errors.append(ImportRowError(row_number=row_number, reason=str(exc)))
+            continue  # skip extra fields if the main row already failed
+
+        # Write extra fields (ack/from/q in ioBroker field-based mode) as separate
+        # requests to the same tagless series+timestamp - InfluxDB merges them into
+        # one point, giving a complete round-trip without needing multiple ODS rows.
+        for name in extra_field_names:
+            extra_type = _cell_text(cell_at(f"extra.{name}_type")).strip()
+            if not extra_type:
+                continue  # blank = this row has no value for this extra field
+            if extra_type not in VALID_VALUE_TYPES:
+                errors.append(ImportRowError(row_number=row_number, reason=f"extra.{name}_type: invalid value_type {extra_type!r}"))
+                continue
+            try:
+                extra_value = _parse_value_cell(cell_at(f"extra.{name}"), extra_type)
+                valid_rows.append((row_number, PointWriteRequest(
+                    bucket=request.bucket,
+                    measurement=request.measurement,
+                    tags={},  # field-based series has no InfluxDB tags
+                    field=name,
+                    value=extra_value,
+                    value_type=extra_type,
+                    time=request.time,
+                )))
+            except Exception as exc:
+                errors.append(ImportRowError(row_number=row_number, reason=f"extra.{name}: {exc}"))
 
     return valid_rows, errors

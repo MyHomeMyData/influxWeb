@@ -47,7 +47,9 @@ const EditConfirmModal = {
       await Api.writePoint({
         bucket: State.bucket,
         measurement: this.row.measurement,
-        tags: this.row.tags,
+        // Field-based rows carry synthetic tags for display only; the actual
+        // InfluxDB series has no tags, so write with {} to hit the right series.
+        tags: this.row.storage_variant === "field-based" ? {} : this.row.tags,
         field: this.row.field,
         value: this.newValue,
         value_type: this.row.value_type,

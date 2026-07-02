@@ -92,7 +92,7 @@ def test_rows_from_separate_field_tables_are_sorted_by_time():
         _FakeMultiFieldRecord("value", t2, 36.6),
     ]
     selection, time_range = _selection()
-    rows, _ = query_service.query_points(_FakeMultiFieldClient(records), selection, time_range, None)
+    rows, _, _fb = query_service.query_points(_FakeMultiFieldClient(records), selection, time_range, None)
 
     assert [(row.time, row.field) for row in rows] == [
         (t1.isoformat().replace("+00:00", "Z"), "ack"),
@@ -104,21 +104,21 @@ def test_rows_from_separate_field_tables_are_sorted_by_time():
 
 def test_result_under_cap_is_not_truncated():
     selection, time_range = _selection()
-    rows, truncated = query_service.query_points(_FakeClient(5), selection, time_range, None)
+    rows, truncated, _ = query_service.query_points(_FakeClient(5), selection, time_range, None)
     assert len(rows) == 5
     assert truncated is False
 
 
 def test_result_exactly_at_cap_is_not_truncated():
     selection, time_range = _selection()
-    rows, truncated = query_service.query_points(_FakeClient(10), selection, time_range, 10)
+    rows, truncated, _ = query_service.query_points(_FakeClient(10), selection, time_range, 10)
     assert len(rows) == 10
     assert truncated is False
 
 
 def test_result_over_cap_is_truncated_at_the_cap():
     selection, time_range = _selection()
-    rows, truncated = query_service.query_points(_FakeClient(100), selection, time_range, 10)
+    rows, truncated, _ = query_service.query_points(_FakeClient(100), selection, time_range, 10)
     assert len(rows) == 10
     assert truncated is True
 
@@ -126,7 +126,7 @@ def test_result_over_cap_is_truncated_at_the_cap():
 def test_no_limit_falls_back_to_the_hard_max(monkeypatch):
     monkeypatch.setattr(query_service, "MAX_QUERY_POINTS", 7)
     selection, time_range = _selection()
-    rows, truncated = query_service.query_points(_FakeClient(100), selection, time_range, None)
+    rows, truncated, _ = query_service.query_points(_FakeClient(100), selection, time_range, None)
     assert len(rows) == 7
     assert truncated is True
 
@@ -134,7 +134,7 @@ def test_no_limit_falls_back_to_the_hard_max(monkeypatch):
 def test_requested_limit_above_hard_max_is_clamped(monkeypatch):
     monkeypatch.setattr(query_service, "MAX_QUERY_POINTS", 7)
     selection, time_range = _selection()
-    rows, truncated = query_service.query_points(_FakeClient(100), selection, time_range, 1_000_000)
+    rows, truncated, _ = query_service.query_points(_FakeClient(100), selection, time_range, 1_000_000)
     assert len(rows) == 7
     assert truncated is True
 

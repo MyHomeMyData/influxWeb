@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -17,6 +18,8 @@ class Settings(BaseSettings):
     bind_host: str = "0.0.0.0"
     bind_port: int = 8085
     log_level: str = "info"
+
+    influxweb_mode: Literal["default", "iobroker"] = "default"
 
     def __repr__(self) -> str:
         return "Settings(influx_url=%r, influx_org=%r, influx_token=***)" % (

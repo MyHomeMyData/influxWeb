@@ -34,7 +34,7 @@ const DeleteConfirmModal = {
         const key = pointKey(row.measurement, row.tags, row.time);
         if (seenKeys.has(key)) continue;
         seenKeys.add(key);
-        this.points.push({ bucket: State.bucket, measurement: row.measurement, tags: row.tags, time: row.time });
+        this.points.push({ bucket: State.bucket, measurement: row.measurement, tags: row.tags, time: row.time, storage_variant: row.storage_variant ?? null });
       }
       this.preview = await Api.previewDeleteSelected(this.points);
       this._renderPreview();

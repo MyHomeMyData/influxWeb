@@ -40,7 +40,9 @@ function valueCellEditor(cell, onRendered, success, cancel) {
     }
   }
 
-  input.addEventListener("change", commit);
+  // Number inputs fire "change" on stepper-button clicks (before blur), which
+  // would open the confirm modal prematurely - rely on blur/Enter instead.
+  if (type !== "number") input.addEventListener("change", commit);
   input.addEventListener("blur", commit);
   input.addEventListener("keydown", (event) => {
     if (event.key === "Enter") commit();
@@ -295,6 +297,7 @@ const ResultsTable = {
           field: rawRow.field,
           value_type: rawRow.value_type,
           time: rawRow.time,
+          storage_variant: rawRow.storage_variant ?? null,
         }),
       }),
       getOldValue: () => cell.getOldValue(),
@@ -350,9 +353,16 @@ const ResultsTable = {
           tags: row.tags,
           time: row.time,
           fields: {},
+          storage_variant: row.storage_variant ?? null,
         });
       }
       groups.get(key).fields[row.field] = { value: row.value, value_type: row.value_type };
+      // In ioBroker field-based mode the backend adds extra_fields (typed ack/
+      // from/q) so retime can write all fields to the new timestamp - include
+      // them here so they flow through to the retime API payload.
+      if (row.extra_fields) {
+        Object.assign(groups.get(key).fields, row.extra_fields);
+      }
     }
     return [...groups.values()];
   },

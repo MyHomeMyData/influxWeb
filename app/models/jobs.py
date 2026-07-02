@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -6,6 +8,7 @@ class PointRef(BaseModel):
     measurement: str
     tags: dict[str, str]
     time: str
+    storage_variant: Literal["tag-based", "field-based"] | None = None
 
 
 class DeleteSelectedPreviewRequest(BaseModel):

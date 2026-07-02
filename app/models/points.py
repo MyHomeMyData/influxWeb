@@ -11,6 +11,11 @@ FieldValue = float | int | bool | str
 FieldValueType = Literal["float", "int", "bool", "string"]
 
 
+class FieldEntry(BaseModel):
+    value: FieldValue
+    value_type: FieldValueType
+
+
 class Selection(BaseModel):
     bucket: str
     measurements: list[str] = []
@@ -34,11 +39,17 @@ class PointRow(BaseModel):
     value: FieldValue
     value_type: FieldValueType
     time: str
+    storage_variant: Literal["tag-based", "field-based"] | None = None
+    # iobroker mode only: typed field values for ack/from/q - used by retime
+    # to write all fields to the new timestamp (not needed for delete/edit,
+    # which work from tags={} + field="value" alone).
+    extra_fields: dict[str, FieldEntry] | None = None
 
 
 class PointQueryResponse(BaseModel):
     points: list[PointRow]
     truncated: bool
+    field_based_measurements: list[str] = []
 
 
 class ExportSelectedRequest(BaseModel):

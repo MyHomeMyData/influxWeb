@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from influxdb_client.rest import ApiException
 from urllib3.exceptions import TimeoutError as Urllib3TimeoutError
 
+from app.deps import SettingsDep
 from app.routers import buckets, delete, export, import_, points, retime, schema
 from app.utils.api_error import extract_message
 from app.version import __version__
@@ -14,8 +15,8 @@ app = FastAPI(title="influxWeb", version=__version__)
 
 
 @app.get("/api/version")
-def get_version() -> dict[str, str]:
-    return {"version": __version__}
+def get_version(settings: SettingsDep) -> dict[str, str]:
+    return {"version": __version__, "mode": settings.influxweb_mode}
 
 app.include_router(buckets.router)
 app.include_router(schema.router)
