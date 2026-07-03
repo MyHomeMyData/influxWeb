@@ -2,12 +2,9 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.models.points import FieldValue, FieldValueType
+from app.models.points import FieldEntry, FieldValue, FieldValueType
 
-
-class FieldEntry(BaseModel):
-    value: FieldValue
-    value_type: FieldValueType
+__all__ = ["FieldEntry", "FieldValue", "FieldValueType"]
 
 
 class PointGroup(BaseModel):
@@ -16,6 +13,7 @@ class PointGroup(BaseModel):
     tags: dict[str, str]
     time: str
     fields: dict[str, FieldEntry]
+    storage_variant: Literal["tag-based", "field-based"] | None = None
 
 
 class RetimePoint(BaseModel):
@@ -25,6 +23,7 @@ class RetimePoint(BaseModel):
     old_time: str
     new_time: str
     fields: dict[str, FieldEntry]
+    storage_variant: Literal["tag-based", "field-based"] | None = None
 
 
 class RetimeOffsetComputeRequest(BaseModel):

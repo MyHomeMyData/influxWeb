@@ -23,6 +23,7 @@ def compute_offset(groups: list[PointGroup], amount: int, unit: OffsetUnit) -> l
             old_time=group.time,
             new_time=shift_time(group.time, amount, unit),
             fields=group.fields,
+            storage_variant=group.storage_variant,
         )
         for group in groups
     ]
@@ -37,6 +38,7 @@ def compute_normalize(groups: list[PointGroup], granularity: NormalizeGranularit
             old_time=group.time,
             new_time=normalize_time(group.time, granularity),
             fields=group.fields,
+            storage_variant=group.storage_variant,
         )
         for group in groups
     ]
@@ -69,8 +71,16 @@ def execute_retime(
         if point.new_time == point.old_time:
             continue  # nothing to move - writing then deleting would just destroy it
 
+        # Field-based ioBroker storage has no real tags - the synthetic tags on
+        # the RetimePoint are for display only. Use empty tags for the write,
+        # and empty tags for the delete predicate (the time window is precise
+        # enough to identify the single point without a tag filter).
+        is_field_based = point.storage_variant == "field-based"
+        write_tags = {} if is_field_based else point.tags
+        delete_tags = {} if is_field_based else point.tags
+
         new_point = Point(point.measurement)
-        for key, value in point.tags.items():
+        for key, value in write_tags.items():
             new_point = new_point.tag(key, value)
         for field, entry in point.fields.items():
             new_point = new_point.field(field, coerce_field_value(entry.value, entry.value_type))
@@ -83,7 +93,7 @@ def execute_retime(
             # +1 microsecond: matches the precision ns_to_rfc3339 truncates to,
             # guarantees a non-empty [start, stop) window for this exact point.
             stop=ns_to_rfc3339(old_start_ns + 1_000),
-            predicate=series_predicate(point.measurement, point.tags),
+            predicate=series_predicate(point.measurement, delete_tags),
             bucket=point.bucket,
             org=org,
         )

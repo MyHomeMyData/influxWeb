@@ -24,6 +24,8 @@ function setStatus(text, kind = "") {
 // response detect it's been superseded - by a later query or by
 // clearSelection() - and skip applying its (now stale) result.
 let queryToken = 0;
+let appMode = "default";
+let fieldBasedMeasurements = new Set();
 const GROUP_BY_POINT_STORAGE_KEY = "influxweb.groupByPoint";
 
 // Tracks whether the status line is currently showing a "N points" message
@@ -68,6 +70,13 @@ async function applyQuery() {
     if (token !== queryToken) return;
     ResultsTable.setRows(result.points);
     StatsTable.setRows(result.points);
+    if (appMode === "iobroker") {
+      fieldBasedMeasurements = new Set(result.field_based_measurements);
+      if (result.field_based_measurements.length > 0 && !ResultsTable.groupByPoint) {
+        ResultsTable.setGroupByPoint(true);
+        document.getElementById("group-by-point").checked = true;
+      }
+    }
     updateToolbarLabels(ResultsTable.getSelectedRowCount());
     lastQueryTruncated = result.truncated;
     showingPointsStatus = true;
@@ -226,14 +235,19 @@ function onTimeEdited(cell) {
     old_time: oldTime,
     new_time: newTime,
     fields: group.fields,
+    storage_variant: group.storage_variant ?? null,
   };
   RetimeConfirmModal.open([point], () => cell.restoreOldValue());
 }
 
 async function showVersion() {
   try {
-    const { version } = await Api.getVersion();
+    const { version, mode } = await Api.getVersion();
     document.getElementById("version-badge").textContent = `v${version}`;
+    appMode = mode ?? "default";
+    if (appMode === "iobroker") {
+      document.getElementById("group-by-point-row").style.display = "none";
+    }
   } catch {
     // Cosmetic only - a failed fetch here shouldn't block the rest of the page.
   }

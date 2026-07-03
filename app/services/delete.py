@@ -16,7 +16,12 @@ def preview_delete_selected(points: list[PointRef]) -> DeleteSelectedPreviewResp
 
 
 def _point_predicate(point: PointRef) -> str:
-    return series_predicate(point.measurement, point.tags)
+    # Field-based ioBroker storage has no real tags - the tags on the PointRef
+    # are synthetic (for display only). Use an empty tag dict so the predicate
+    # matches on measurement alone; the precise nanosecond time window already
+    # identifies the single point.
+    tags = {} if point.storage_variant == "field-based" else point.tags
+    return series_predicate(point.measurement, tags)
 
 
 def execute_delete_selected(

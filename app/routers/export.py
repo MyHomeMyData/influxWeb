@@ -25,7 +25,7 @@ class RawExportRequest(BaseModel):
 @router.get("/ods")
 def export_ods(selection_json: str, client: InfluxClientDep) -> Response:
     request = PointQueryRequest(**json.loads(selection_json))
-    rows, _ = query_service.query_points(client, request, request, request.limit)
+    rows, _, _ = query_service.query_points(client, request, request, request.limit)
     content = ods_io.build_ods(request.bucket, rows)
     return Response(
         content=content,

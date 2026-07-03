@@ -9,9 +9,11 @@ router = APIRouter(prefix="/api/points", tags=["points"])
 
 
 @router.post("/query", response_model=PointQueryResponse)
-def query_points(request: PointQueryRequest, client: InfluxClientDep) -> PointQueryResponse:
-    rows, truncated = query_service.query_points(client, request, request, request.limit)
-    return PointQueryResponse(points=rows, truncated=truncated)
+def query_points(request: PointQueryRequest, client: InfluxClientDep, settings: SettingsDep) -> PointQueryResponse:
+    rows, truncated, field_based = query_service.query_points(
+        client, request, request, request.limit, settings.influxweb_mode
+    )
+    return PointQueryResponse(points=rows, truncated=truncated, field_based_measurements=field_based)
 
 
 @router.put("", response_model=PointWriteResponse)
