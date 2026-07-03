@@ -71,9 +71,15 @@ create a complete ioBroker point and should be avoided.
   every row currently loaded in the table - with a preview and explicit
   confirmation before anything is deleted
 - Edit a value inline (double-click a cell in the Value column) with a
-  confirm-before-save step, or add a brand-new point via a separate modal -
+  confirm-before-save step, or add a brand-new point via a separate modal —
   both share the same write path (overwrite by measurement+tags+timestamp,
-  last-write-wins, same as InfluxDB itself)
+  last-write-wins, same as InfluxDB itself). In `INFLUXWEB_MODE=iobroker`,
+  the metadata fields `ack`, `from`, and `q` are also editable inline:
+  for field-based storage they behave like any other field edit; for
+  tag-based storage the confirm step writes a new point with the changed
+  tag and deletes the old one. `q` uses a dropdown of the known ioBroker
+  quality-flag values (0 Good, 1 General error, 2 No connection, 16
+  Substitute, 32 Device error, 64 Device-specific error, 128 Not connected)
 - Retime points: shift the timestamp of selected (or all loaded) points by a
   calendar-aware offset, or normalize them to the start of the
   minute/hour/day/week/month/year (local time, DST-aware) — both via the
@@ -216,6 +222,21 @@ Open `http://localhost:8085/` (or `http://<host>:8085/` from another machine on 
 uvicorn only listens on `127.0.0.1` unless `--host 0.0.0.0` is passed explicitly).
 
 ## Changelog
+
+### 0.3.1 (2026-07-03)
+
+(MyHomeMyData) In `INFLUXWEB_MODE=iobroker`, the metadata fields `ack`, `from`, and
+`q` are now editable inline in the data table:
+
+- **Field-based storage**: `ack`/`from`/`q` appear as editable field columns (instead
+  of read-only synthetic tag columns); `q` uses a dropdown of the eight known ioBroker
+  quality-flag values; unknown values appear as an extra option
+- **Tag-based storage**: double-clicking `ack`, `from`, or `q` opens a confirm dialog
+  that writes a new point with the changed tag and deletes the old one (same
+  write-before-delete pattern as Retime)
+
+Also fixed: `q` was displayed as a decimal (`0.0`) in field-based mode — now shown
+as an integer (`0`).
 
 ### 0.3.0 (2026-07-01)
 

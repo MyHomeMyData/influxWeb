@@ -255,7 +255,12 @@ async function showVersion() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   showVersion();
-  ResultsTable.init(updateToolbarLabels, (cell) => EditConfirmModal.open(cell), (cell) => onTimeEdited(cell));
+  ResultsTable.init(
+    updateToolbarLabels,
+    (cell) => EditConfirmModal.open(cell),
+    (cell) => onTimeEdited(cell),
+    (retagInfo) => EditConfirmModal.openRetag(retagInfo),
+  );
   DeleteConfirmModal.init(applyQuery);
   EditConfirmModal.init(onPointSaved);
   AddPointModal.init(onPointAdded);
