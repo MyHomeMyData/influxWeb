@@ -1,3 +1,56 @@
+// Editors for ack/from/q when stored as tags (tag-based ioBroker storage).
+// Return strings, because InfluxDB tag values are always strings.
+function ackTagEditor(cell, onRendered, success, cancel) {
+  const input = document.createElement("select");
+  for (const v of ["true", "false"]) {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    input.appendChild(opt);
+  }
+  input.value = cell.getValue() ?? "true";
+  input.classList.add("cell-editor");
+  onRendered(() => input.focus());
+  function commit() { success(input.value); }
+  input.addEventListener("change", commit);
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") cancel();
+  });
+  return input;
+}
+
+function qTagEditor(cell, onRendered, success, cancel) {
+  const raw = cell.getValue();
+  const current = (raw === "" || raw === null || raw === undefined) ? "0" : String(raw);
+  const input = document.createElement("select");
+  const knownValues = new Set(IOBROKER_Q_VALUES.map((e) => String(e.value)));
+  for (const { value, label } of IOBROKER_Q_VALUES) {
+    const opt = document.createElement("option");
+    opt.value = String(value);
+    opt.textContent = label;
+    input.appendChild(opt);
+  }
+  if (!knownValues.has(current)) {
+    const opt = document.createElement("option");
+    opt.value = current;
+    opt.textContent = `${current} — (unknown)`;
+    input.appendChild(opt);
+  }
+  input.value = current;
+  input.classList.add("cell-editor");
+  onRendered(() => input.focus());
+  function commit() { success(input.value); }  // returns string
+  input.addEventListener("change", commit);
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") commit();
+    if (e.key === "Escape") cancel();
+  });
+  return input;
+}
+
 const IOBROKER_EXTRA_FIELD_DEFAULTS = {
   ack:  { value: false, value_type: "bool" },
   from: { value: "",    value_type: "string" },
@@ -126,10 +179,11 @@ const ResultsTable = {
   groupedRowsByKey: new Map(),
   isBuilt: false,
 
-  init(onSelectionChanged, onValueEdited, onTimeEdited) {
+  init(onSelectionChanged, onValueEdited, onTimeEdited, onTagEdited) {
     this.onSelectionChanged = onSelectionChanged ?? (() => {});
     this.onValueEdited = onValueEdited ?? (() => {});
     this.onTimeEdited = onTimeEdited ?? (() => {});
+    this.onTagEdited = onTagEdited ?? (() => {});
     this.tabulator = new Tabulator("#results-table", {
       layout: "fitDataStretch",
       height: "65vh",
@@ -160,6 +214,9 @@ const ResultsTable = {
         this.onTimeEdited(cell);
       } else if (cell.getField() === "value") {
         this.onValueEdited(cell);
+      } else if (cell.getField().startsWith("tag_")) {
+        const retagInfo = this._buildRetagInfo(cell);
+        if (retagInfo) this.onTagEdited(retagInfo);
       }
     });
   },
@@ -180,10 +237,25 @@ const ResultsTable = {
     }
 
     const tagKeys = this._tagKeys(this.rawRows);
+    const hasIoBrokerTagRows = this.rawRows.some((r) => r.storage_variant === "tag-based");
+    const iobrokerTagEditorFor = (key) => {
+      if (key === "ack") return (cell, oR, s, c) => ackTagEditor(cell, oR, s, c);
+      if (key === "q")   return (cell, oR, s, c) => qTagEditor(cell, oR, s, c);
+      if (key === "from") return (cell, oR, s, c) => valueCellEditor(cell, oR, s, c);
+      return null;
+    };
+
     if (!this.groupByPoint) {
       const columns = [
         { title: "Measurement", field: "measurement" },
-        ...tagKeys.map((key) => ({ title: key, field: `tag_${key}` })),
+        ...tagKeys.map((key) => {
+          const col = { title: key, field: `tag_${key}` };
+          if (hasIoBrokerTagRows) {
+            const editor = iobrokerTagEditorFor(key);
+            if (editor) col.editor = editor;
+          }
+          return col;
+        }),
         { title: "Field", field: "field" },
         { title: "Value", field: "value", editor: valueCellEditor },
         { title: "Time", field: "time", sorter: "string", editable: true, editor: "input" },
@@ -237,7 +309,14 @@ const ResultsTable = {
       this._groupedFieldEditor(cell, onRendered, success, cancel);
     const columns = [
       { title: "Measurement", field: "measurement" },
-      ...tagKeysToShow.map((key) => ({ title: key, field: `tag_${key}` })),
+      ...tagKeysToShow.map((key) => {
+        const col = { title: key, field: `tag_${key}` };
+        if (hasIoBrokerTagRows) {
+          const editor = iobrokerTagEditorFor(key);
+          if (editor) col.editor = editor;
+        }
+        return col;
+      }),
       ...extraFieldNames.map((name) => ({ title: name, field: `field_${name}`, editor: fieldEditor })),
       ...fieldNames.map((field) => ({ title: field, field: `field_${field}`, editor: fieldEditor })),
       {
@@ -448,6 +527,38 @@ const ResultsTable = {
   // because that's what Export/Delete/Retime need to act on. Toolbar labels
   // and dialogs use these instead, so the number a user sees always matches
   // what they visually selected, regardless of view mode.
+  _buildRetagInfo(cell) {
+    const tagKey = cell.getField().slice(4); // strip "tag_" prefix
+    let row;
+    if (this.groupByPoint) {
+      const groupedRow = cell.getRow().getData();
+      const rawRows = this.groupedRowsByKey.get(groupedRow.__group_key) ?? [];
+      row = rawRows[0];
+    } else {
+      row = cell.getRow().getData();
+    }
+    if (!row || row.storage_variant !== "tag-based") {
+      cell.restoreOldValue();
+      return null;
+    }
+    const oldTagValue = cell.getOldValue();
+    const newTagValue = cell.getValue();
+    const newTags = { ...row.tags, [tagKey]: newTagValue };
+    return {
+      cell,
+      measurement: row.measurement,
+      oldTags: row.tags,
+      newTags,
+      tagKey,
+      oldTagValue,
+      newTagValue,
+      field: row.field,
+      value: row.value,
+      value_type: row.value_type,
+      time: row.time,
+    };
+  },
+
   getSelectedRowCount() {
     return this.tabulator ? this.tabulator.getSelectedData().length : 0;
   },
