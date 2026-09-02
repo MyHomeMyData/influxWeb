@@ -186,6 +186,15 @@ async function onPointAdded() {
   setStatus("Point added.");
 }
 
+async function onValueAdded() {
+  // Same refresh needs as onPointAdded() above - AddValueModal reuses an
+  // existing point's measurement, so this is mostly for a consistent status
+  // message and to pick up the now-complete point in the table.
+  await FilterBuilder.render(applyQuery);
+  await applyQuery();
+  setStatus("Value added.");
+}
+
 async function onPointsRetimed(count) {
   await applyQuery();
   setStatus(`${count} point(s) retimed.`);
@@ -264,6 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   DeleteConfirmModal.init(applyQuery);
   EditConfirmModal.init(onPointSaved);
   AddPointModal.init(onPointAdded);
+  AddValueModal.init(onValueAdded);
   RetimeConfirmModal.init(onPointsRetimed);
   RetimeBulkModal.init();
   ImportOdsModal.init(onOdsImported);
@@ -300,5 +310,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("clear-selection").addEventListener("click", clearSelection);
   document.getElementById("delete-in-range").addEventListener("click", () => DeleteConfirmModal.open());
   document.getElementById("add-point").addEventListener("click", () => AddPointModal.open());
+  document.getElementById("duplicate-point").addEventListener("click", () => AddPointModal.openDuplicate());
+  document.getElementById("add-value").addEventListener("click", () => AddValueModal.open());
   document.getElementById("retime-in-range").addEventListener("click", () => RetimeBulkModal.open());
 });

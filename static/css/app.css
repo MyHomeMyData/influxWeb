@@ -268,6 +268,28 @@ button.danger:disabled {
   padding: 0.3rem;
 }
 
+#add-value-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+}
+
+#add-value-modal input,
+#add-value-modal select {
+  padding: 0.3rem;
+}
+
+.preview-summary {
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .tag-row {
   display: flex;
   gap: 0.4rem;
@@ -277,6 +299,22 @@ button.danger:disabled {
 .tag-row input {
   flex: 1;
   min-width: 0;
+}
+
+.field-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.field-row .field-name,
+.field-row .field-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-row .field-type {
+  flex: 0 0 auto;
 }
 
 .cell-editor {

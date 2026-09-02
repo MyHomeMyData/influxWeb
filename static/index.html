@@ -63,6 +63,8 @@
         <button id="export-raw">Export Raw</button>
         <button id="import-raw">Import Raw</button>
         <button id="add-point">+ Add point</button>
+        <button id="duplicate-point">Duplicate selected</button>
+        <button id="add-value">+ Add value at selected</button>
         <button id="retime-in-range">Retime in range</button>
         <button id="delete-in-range" class="danger">Delete in range</button>
       </div>
@@ -96,7 +98,8 @@
 
   <div id="add-point-modal" class="modal-overlay">
     <div class="modal-box">
-      <h2>Add point</h2>
+      <h2 id="add-point-title">Add point</h2>
+      <p id="add-point-note" class="preview-summary" style="display:none"></p>
       <label>
         Measurement
         <input id="add-point-measurement" type="text" />
@@ -104,29 +107,28 @@
       <div id="add-point-default-form">
         <div id="add-point-tag-rows"></div>
         <button id="add-point-add-tag" type="button">+ Add tag</button>
-        <label>
-          Field
-          <input id="add-point-field" type="text" />
-        </label>
+        <label>Fields</label>
+        <div id="add-point-field-rows"></div>
+        <button id="add-point-add-field" type="button">+ Add field</button>
       </div>
       <div id="add-point-iobroker-form" style="display:none">
         <label>ack <select id="add-point-ack"><option value="true">true</option><option value="false">false</option></select></label>
         <label>from <input id="add-point-from" type="text" value="system.adapter.admin.0" /></label>
         <label>q <input id="add-point-q" type="number" value="0" /></label>
+        <label>
+          Value
+          <input id="add-point-value" type="text" />
+        </label>
+        <label>
+          Type
+          <select id="add-point-type">
+            <option value="float">float</option>
+            <option value="int">int</option>
+            <option value="bool">boolean</option>
+            <option value="string">string</option>
+          </select>
+        </label>
       </div>
-      <label>
-        Value
-        <input id="add-point-value" type="text" />
-      </label>
-      <label>
-        Type
-        <select id="add-point-type">
-          <option value="float">float</option>
-          <option value="int">int</option>
-          <option value="bool">boolean</option>
-          <option value="string">string</option>
-        </select>
-      </label>
       <label>
         Time
         <input id="add-point-time" type="text" />
@@ -135,6 +137,36 @@
       <div class="modal-actions">
         <button id="add-point-cancel">Cancel</button>
         <button id="add-point-confirm">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-value-modal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>Add value</h2>
+      <p>
+        Adds a missing "value" field to the point currently marked in the table,
+        using its existing measurement, tags and time - other fields (e.g.
+        ack/from/q) are left untouched.
+      </p>
+      <div id="add-value-summary" class="preview-summary"></div>
+      <label>
+        Value
+        <input id="add-value-value" type="text" />
+      </label>
+      <label>
+        Type
+        <select id="add-value-type">
+          <option value="float">float</option>
+          <option value="int">int</option>
+          <option value="bool">boolean</option>
+          <option value="string">string</option>
+        </select>
+      </label>
+      <p id="add-value-error" class="status-line error"></p>
+      <div class="modal-actions">
+        <button id="add-value-cancel">Cancel</button>
+        <button id="add-value-confirm">Add</button>
       </div>
     </div>
   </div>
@@ -244,6 +276,7 @@
   <script src="/js/modals/delete_confirm.js"></script>
   <script src="/js/modals/edit_confirm.js"></script>
   <script src="/js/modals/add_point.js"></script>
+  <script src="/js/modals/add_value.js"></script>
   <script src="/js/modals/retime_confirm.js"></script>
   <script src="/js/modals/retime_bulk.js"></script>
   <script src="/js/modals/import_ods.js"></script>
