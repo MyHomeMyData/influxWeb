@@ -223,6 +223,15 @@ uvicorn only listens on `127.0.0.1` unless `--host 0.0.0.0` is passed explicitly
 
 ## Changelog
 
+### 0.3.2 (2026-09-02)
+
+(MyHomeMyData) Fixed a bug in `INFLUXWEB_MODE=iobroker` field-based storage: points
+whose `ack`/`from`/`q`/`value` fields were not all written in a single line-protocol
+write (a sub-millisecond timestamp difference between them) could be split into two
+broken rows instead of grouped into one — silently hiding the sensor value from the
+Data View and making it uneditable. Grouping now rounds to whole milliseconds instead
+of requiring an exact timestamp match. Reported by arteck via the ioBroker forum.
+
 ### 0.3.1 (2026-07-03)
 
 (MyHomeMyData) In `INFLUXWEB_MODE=iobroker`, the metadata fields `ack`, `from`, and
