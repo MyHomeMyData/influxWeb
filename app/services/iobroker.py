@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Literal
 
+from app.utils.time import rfc3339_to_ns
+
 if TYPE_CHECKING:
     from app.models.points import PointRow
 
@@ -40,10 +42,22 @@ def group_field_based_rows(rows: "list[PointRow]") -> "list[PointRow]":
     # Import here to avoid circular dependency at module load time
     from app.models.points import FieldEntry, PointRow
 
-    groups: dict[str, list[PointRow]] = {}
-    order: list[str] = []
+    # ioBroker's InfluxDB adapter does not always write ack/from/q/value for
+    # the same logical point in a single line-protocol write - separate writes
+    # can land nanoseconds/microseconds apart even though they represent one
+    # reading. Grouping on the exact timestamp string then splits one point
+    # into several broken rows (a "value" fallback to another field, plus an
+    # orphaned tag-less row) - found via a real ioBroker bug report where the
+    # sensor value silently vanished from the Data View. Rounding the grouping
+    # key down to whole milliseconds absorbs that jitter; it matches the
+    # precision the rest of the app already treats as authoritative (see the
+    # ODS export's separate `time_ms` column) and is far finer than any two
+    # genuinely distinct ioBroker readings of the same measurement are likely
+    # to land in.
+    groups: dict[tuple[str, int], list[PointRow]] = {}
+    order: list[tuple[str, int]] = []
     for row in rows:
-        key = f"{row.measurement}||{row.time}"
+        key = (row.measurement, rfc3339_to_ns(row.time) // 1_000_000)
         if key not in groups:
             groups[key] = []
             order.append(key)
